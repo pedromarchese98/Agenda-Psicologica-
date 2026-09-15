@@ -1,0 +1,11 @@
+{
+  "name": "Agenda Psicológica",
+  "short_name": "Agenda",
+  "start_url": "/agenda",
+  "display": "standalone",
+  "background_color": "#0F1729",
+  "theme_color": "#0F1729",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

@@ -1,0 +1,63 @@
+:root {
+  --navy: #0F1729;
+  --navy-md: #16213A;
+  --navy-lt: #1E2C4A;
+  --teal: #3ECFB2;
+  --teal-dk: #22A98F;
+  --amber: #F0A93A;
+  --rose: #E85D6B;
+  --sage: #5BC08A;
+  --violet: #9B7FE0;
+  --surface: #F6F7FB;
+  --card: #FFFFFF;
+  --text: #10162B;
+  --text-md: #545E77;
+  --text-lt: #9098AC;
+  --border: #E4E7F0;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 16px; /* evita zoom automático en iOS al enfocar */
+}
+
+::-webkit-scrollbar { display: none; }
+
+.btn {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 13px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-primary { background: var(--teal); color: var(--navy); }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn:active { transform: scale(0.97); }
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(16, 22, 43, 0.06), 0 1px 2px rgba(16, 22, 43, 0.04);
+}
