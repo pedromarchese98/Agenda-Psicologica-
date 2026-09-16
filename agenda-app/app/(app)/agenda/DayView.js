@@ -153,12 +153,13 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
   return (
     <div style={{ padding: '4px 16px 90px' }}>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {hours.map((h) => {
+        {hours
+          .filter((h) => !blocks.some((b) => b.time?.startsWith(pad(h) + ':')))
+          .map((h) => {
           const hourStr = pad(h);
           const apptsInHour = appointments.filter((a) => a.time?.startsWith(hourStr + ':'));
           const othersInHour = others.filter((o) => o.time?.startsWith(hourStr + ':'));
-          const isBlocked = blocks.some((b) => b.time?.startsWith(hourStr + ':'));
-          const isFree = apptsInHour.length === 0 && othersInHour.length === 0 && !isBlocked;
+          const isFree = apptsInHour.length === 0 && othersInHour.length === 0;
 
           return (
             <div key={h} style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--border)', padding: '8px 0', minHeight: 56 }}>

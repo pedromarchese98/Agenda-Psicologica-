@@ -57,14 +57,15 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
 
   const { from, to } = useMemo(() => {
     const y = today.getFullYear(), m = today.getMonth();
-    if (period === 'month') return { from: `${y}-${pad(m + 1)}-01`, to: toDateStr(today) };
+    const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
+    if (period === 'month') return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}` };
     if (period === 'quarter') {
       const qm = Math.max(0, m - 2);
       return { from: `${y}-${pad(qm + 1)}-01`, to: toDateStr(today) };
     }
-    if (period === 'year') return { from: `${y}-01-01`, to: toDateStr(today) };
+    if (period === 'year') return { from: `${y}-01-01`, to: `${y}-12-31` };
     if (period === 'custom') return { from: rangeFrom || `${y}-01-01`, to: rangeTo || toDateStr(today) };
-    return { from: `${y}-${pad(m + 1)}-01`, to: toDateStr(today) };
+    return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}` };
   }, [period, rangeFrom, rangeTo]);
 
   const filtered = useMemo(() => {
@@ -80,7 +81,8 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
   }, [appointments, from, to, patientFilter]);
 
   const stats = useMemo(() => {
-    let total = 0, att = 0, cancDay = 0, cancAdv = 0, cancFree = 0, coll = 0, debt = 0, cash = 0, transf = 0;
+    const todayStr = toDateStr(today);
+    let total = 0, pastTotal = 0, att = 0, cancDay = 0, cancAdv = 0, cancFree = 0, coll = 0, debt = 0, cash = 0, transf = 0;
     const byPatient = {};
     const byMonth = {};
     const byWeekday = [0, 0, 0, 0, 0, 0, 0];
@@ -88,6 +90,7 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
 
     filtered.forEach((a) => {
       total++;
+      if (a.date <= todayStr) pastTotal++;
       const pr = Number(a.price) || 0;
       const name = a.patients ? `${a.patients.first_name} ${a.patients.last_name || ''}`.trim() : 'Sin nombre';
       if (!byPatient[name]) byPatient[name] = { name, total: 0, att: 0, cancDay: 0, cancAdv: 0, cancFree: 0, paid: 0, debt: 0 };
@@ -122,7 +125,7 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
     });
 
     const totalCanc = cancDay + cancAdv + cancFree;
-    const attendanceRate = total ? Math.round((att / total) * 100) : 0;
+    const attendanceRate = pastTotal ? Math.round((att / pastTotal) * 100) : 0;
 
     const monthKeys = Object.keys(byMonth).sort();
     const monthlyData = monthKeys.map((k) => ({
@@ -156,7 +159,7 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
     const avgDurationDays = durations.length ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : null;
 
     return {
-      total, att, cancDay, cancAdv, cancFree, totalCanc, coll, debt, cash, transf, attendanceRate,
+      total, pastTotal, att, cancDay, cancAdv, cancFree, totalCanc, coll, debt, cash, transf, attendanceRate,
       byPatient: Object.values(byPatient).sort((a, b) => b.total - a.total),
       monthlyData, weekdayData, avgDurationDays,
     };
@@ -187,8 +190,8 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
 
   const kpis = [
     { label: 'Pacientes activos', value: activeCount, color: 'var(--navy)' },
-    { label: 'Sesiones', value: stats.total, color: 'var(--teal)' },
-    { label: 'Asistencia', value: `${stats.attendanceRate}%`, sub: `${stats.att} de ${stats.total}`, color: 'var(--sage)' },
+    { label: 'Sesiones', value: `${stats.pastTotal}/${stats.total}`, sub: 'pasadas / totales del período', color: 'var(--teal)' },
+    { label: 'Asistencia', value: `${stats.attendanceRate}%`, sub: `${stats.att} de ${stats.pastTotal} (pasadas)`, color: 'var(--sage)' },
     { label: 'Cancelaciones', value: stats.totalCanc, sub: `Día: ${stats.cancDay} · Anticip.: ${stats.cancAdv} · Liberó: ${stats.cancFree}`, color: 'var(--rose)' },
     { label: 'Recaudado', value: fmt$(stats.coll), color: 'var(--teal)' },
     { label: 'Proyección del mes', value: fmt$(monthProjection), sub: 'turnos no cancelados', color: 'var(--teal-dk)' },

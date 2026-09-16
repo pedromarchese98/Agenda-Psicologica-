@@ -65,7 +65,7 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
           Estadísticas históricas
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-          <div><div style={{ fontSize: 18, fontWeight: 800 }}>{stats.total}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Turnos totales</div></div>
+          <div><div style={{ fontSize: 18, fontWeight: 800 }}>{stats.total}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Turnos pasados</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--sage)' }}>{stats.attendanceRate}%</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Asistencia</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--rose)' }}>{stats.cancelled}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Cancelaciones</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: '#1B5E20' }}>{fmt$(stats.paid)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Recaudado</div></div>

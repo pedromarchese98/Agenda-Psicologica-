@@ -54,9 +54,11 @@ export default async function PacientesPage({ searchParams }) {
     const upcoming = (allAppts || []).filter((a) => a.date >= today);
     const past = (allAppts || []).filter((a) => a.date < today);
 
-    const total = (allAppts || []).length;
-    const attended = (allAppts || []).filter((a) => a.attendance === 'yes').length;
-    const cancelled = (allAppts || []).filter((a) => a.attendance === 'no' || a.attendance === 'no-free').length;
+    // Las estadísticas "históricas" se calculan solo sobre turnos que ya pasaron,
+    // así el % de asistencia/cancelación no se diluye con turnos futuros aún pendientes.
+    const total = past.length;
+    const attended = past.filter((a) => a.attendance === 'yes').length;
+    const cancelled = past.filter((a) => a.attendance === 'no' || a.attendance === 'no-free').length;
     const paid = (allAppts || []).reduce((s, a) => s + (a.payment === 'paid' ? Number(a.price) || 0 : 0), 0);
     const debt = (allAppts || []).reduce((s, a) => s + (a.payment === 'unpaid' ? (Number(a.price) || 0) - (Number(a.amount_paid) || 0) : 0), 0);
     const attendanceRate = total ? Math.round((attended / total) * 100) : 0;
