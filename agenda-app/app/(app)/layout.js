@@ -2,24 +2,45 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 const TABS = [
   { href: '/agenda', label: 'Agenda', icon: '📅' },
   { href: '/pacientes', label: 'Pacientes', icon: '👥' },
   { href: '/analisis', label: 'Análisis', icon: '📊' },
-  { href: '/perfil', label: 'Perfil', icon: '👤' },
 ];
 
 export default function AppLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [email, setEmail] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email || ''));
+  }, []);
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    document.addEventListener('touchstart', onClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside);
+      document.removeEventListener('touchstart', onClickOutside);
+    };
+  }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
   }
+
+  const initial = (email || '?').trim().charAt(0).toUpperCase();
 
   return (
     <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
@@ -28,20 +49,64 @@ export default function AppLayout({ children }) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '14px 18px calc(10px + var(--safe-top, 0px))',
+          padding: '14px 18px 10px',
           paddingTop: 'max(14px, var(--safe-top))',
           background: 'var(--navy)',
+          position: 'relative',
         }}
       >
         <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
           🧠 Agenda Psicológica
         </span>
-        <button
-          onClick={handleLogout}
-          style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,.55)', fontSize: 13, cursor: 'pointer' }}
-        >
-          Salir
-        </button>
+
+        <div ref={menuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="pressable"
+            style={{
+              width: 30, height: 30, borderRadius: '50%', background: 'var(--teal)', color: 'var(--navy)',
+              border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+            }}
+            aria-label="Cuenta"
+          >
+            {initial}
+          </button>
+
+          {menuOpen && (
+            <div
+              className="card"
+              style={{
+                position: 'absolute', top: 38, right: 0, width: 220, padding: 10, zIndex: 60,
+                display: 'flex', flexDirection: 'column', gap: 2,
+              }}
+            >
+              <div style={{ padding: '6px 8px 10px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {email}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-lt)' }}>Psicólogo/a</div>
+              </div>
+              <Link
+                href="/perfil"
+                onClick={() => setMenuOpen(false)}
+                style={{ padding: '9px 8px', fontSize: 13, borderRadius: 8, fontWeight: 600 }}
+                className="pressable"
+              >
+                ⚙️ Perfil y configuración
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="pressable"
+                style={{
+                  padding: '9px 8px', fontSize: 13, borderRadius: 8, fontWeight: 600, textAlign: 'left',
+                  background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer',
+                }}
+              >
+                🚪 Cerrar sesión
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 78 }}>{children}</main>

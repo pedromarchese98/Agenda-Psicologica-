@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import DayView from './DayView';
+import WeekView from './WeekView';
+import MonthView from './MonthView';
 import SwipeDayNav from './SwipeDayNav';
 
 function pad(n) {
@@ -14,6 +16,9 @@ function addDays(dateStr, delta) {
   d.setDate(d.getDate() + delta);
   return toDateStr(d);
 }
+function isWeekend(d) {
+  return d.getDay() === 0 || d.getDay() === 6;
+}
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MONTH_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -22,46 +27,135 @@ const MONTH_NAMES = [
 
 export default async function AgendaPage({ searchParams }) {
   const dateStr = searchParams?.date || toDateStr(new Date());
+  const view = searchParams?.view || 'day';
   const supabase = createClient();
-
-  // Solo turnos de pacientes: los bloqueos no se muestran (no aportan nada al día a día).
-  const { data: appointments } = await supabase
-    .from('appointments')
-    .select('*, patients(first_name, last_name)')
-    .eq('date', dateStr)
-    .eq('type', 'patient')
-    .order('time', { ascending: true });
-
   const d = new Date(dateStr + 'T00:00:00');
-  const label = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]}`;
-  const prevHref = `/agenda?date=${addDays(dateStr, -1)}`;
-  const nextHref = `/agenda?date=${addDays(dateStr, 1)}`;
+  const todayKey = toDateStr(new Date());
+
+  const prevHref = `/agenda?view=${view}&date=${addDays(dateStr, -1)}`;
+  const nextHref = `/agenda?view=${view}&date=${addDays(dateStr, 1)}`;
+
+  let body = null;
+  let navLabel = '';
+
+  if (view === 'day') {
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('*, patients(first_name, last_name)')
+      .eq('date', dateStr).eq('type', 'patient').order('time', { ascending: true });
+    const { data: blocks } = await supabase
+      .from('appointments')
+      .select('*')
+      .eq('date', dateStr).eq('type', 'block').order('time', { ascending: true });
+    navLabel = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]}`;
+    body = <DayView dateStr={dateStr} appointments={appointments || []} blocks={blocks || []} />;
+  }
+
+  if (view === 'week') {
+    const dow = d.getDay() || 7;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - (dow - 1));
+    const days = [];
+    for (let i = 0; i < 5; i++) {
+      const cur = new Date(monday);
+      cur.setDate(monday.getDate() + i);
+      days.push({ key: toDateStr(cur), day: cur.getDate() });
+    }
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    navLabel = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} – ${friday.getDate()} ${MONTH_NAMES[friday.getMonth()].slice(0, 3)}`;
+
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('*, patients(first_name, last_name)')
+      .eq('type', 'patient')
+      .gte('date', days[0].key).lte('date', days[4].key);
+
+    const appointmentsByDate = {};
+    (appointments || []).forEach((a) => {
+      if (!appointmentsByDate[a.date]) appointmentsByDate[a.date] = [];
+      appointmentsByDate[a.date].push(a);
+    });
+    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} />;
+  }
+
+  if (view === 'month') {
+    const y = d.getFullYear(), m = d.getMonth();
+    navLabel = `${MONTH_NAMES[m]} ${y}`;
+    const firstOfMonth = new Date(y, m, 1);
+    const lastOfMonth = new Date(y, m + 1, 0);
+
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('date')
+      .eq('type', 'patient')
+      .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth));
+
+    const countsByDate = {};
+    (appointments || []).forEach((a) => { countsByDate[a.date] = (countsByDate[a.date] || 0) + 1; });
+
+    const weeks = [];
+    let week = [];
+    let fwd = firstOfMonth.getDay() || 7; // 1=lunes..7=domingo
+    for (let i = 1; i < fwd; i++) week.push(null);
+    for (let day = 1; day <= lastOfMonth.getDate(); day++) {
+      const cur = new Date(y, m, day);
+      if (isWeekend(cur)) continue;
+      week.push({ key: toDateStr(cur), day });
+      if (week.length === 5) { weeks.push(week); week = []; }
+    }
+    if (week.length) { while (week.length < 5) week.push(null); weeks.push(week); }
+
+    body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} />;
+  }
+
+  const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
 
   return (
-    <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={dateStr}>
+    <SwipeDayNav prevHref={view === 'day' ? prevHref : '#'} nextHref={view === 'day' ? nextHref : '#'} dateKey={`${view}-${dateStr}`}>
       <div style={{ padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>
-            ‹
-          </Link>
-          <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
-            {label}
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 8, padding: 3, gap: 2 }}>
+            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([v, label]) => (
+              <Link
+                key={v}
+                href={viewLink(v)}
+                className="pressable"
+                style={{
+                  padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+                  background: view === v ? 'var(--card)' : 'transparent',
+                  color: view === v ? 'var(--navy)' : 'var(--text-md)',
+                  boxShadow: view === v ? '0 1px 4px rgba(0,0,0,.12)' : 'none',
+                }}
+              >
+                {label}
+              </Link>
+            ))}
           </div>
-          <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>
-            ›
-          </Link>
         </div>
 
-        {dateStr !== toDateStr(new Date()) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+          {view === 'day' ? (
+            <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
+          ) : <span style={{ width: 38 }} />}
+          <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
+            {navLabel}
+          </div>
+          {view === 'day' ? (
+            <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
+          ) : <span style={{ width: 38 }} />}
+        </div>
+
+        {dateStr !== todayKey && (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <Link href="/agenda" style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
+            <Link href={viewLink(view)} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               Volver a hoy
             </Link>
           </div>
         )}
       </div>
 
-      <DayView dateStr={dateStr} appointments={appointments || []} />
+      {body}
     </SwipeDayNav>
   );
 }

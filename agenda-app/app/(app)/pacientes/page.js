@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import PatientDetail from './PatientDetail';
+import PatientsFilterBar from './PatientsFilterBar';
 
 const STATUS_DOT = {
   active: '🟢', paused: '🟡', suspended: '🟠', abandoned: '🔴', discharged: '🟣', referred: '🔵',
@@ -13,11 +14,13 @@ const STATUS_LABEL = {
 export default async function PacientesPage({ searchParams }) {
   const supabase = createClient();
   const selectedId = searchParams?.id;
+  const status = searchParams?.status || 'active';
+  const q = searchParams?.q || '';
 
-  const { data: patients } = await supabase
-    .from('patients')
-    .select('*')
-    .order('first_name', { ascending: true });
+  let query = supabase.from('patients').select('*').order('first_name', { ascending: true });
+  if (status !== 'all') query = query.eq('status', status);
+  if (q.trim()) query = query.ilike('first_name', `%${q.trim()}%`);
+  const { data: patients } = await query;
 
   let detail = null;
   if (selectedId) {
@@ -34,6 +37,8 @@ export default async function PacientesPage({ searchParams }) {
     detail = { patient, notes: notes || [], upcoming: upcoming || [] };
   }
 
+  const backHref = `/pacientes?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
+
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100dvh - 130px)' }}>
       <div
@@ -46,26 +51,28 @@ export default async function PacientesPage({ searchParams }) {
         }}
         className="patients-list-col"
       >
-        <div style={{ padding: 14 }}>
-          <div
-            style={{
-              display: 'flex', flexWrap: 'wrap', gap: '6px 12px', padding: '10px 8px 14px',
-              borderBottom: '1px solid var(--border)', marginBottom: 6,
-            }}
-          >
-            {Object.entries(STATUS_LABEL).map(([key, label]) => (
-              <span key={key} style={{ fontSize: 11, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                {STATUS_DOT[key]} {label}
-              </span>
-            ))}
-          </div>
+        <PatientsFilterBar status={status} q={q} />
+
+        <div
+          style={{
+            display: 'flex', flexWrap: 'wrap', gap: '6px 12px', padding: '4px 18px 12px',
+            borderBottom: '1px solid var(--border)', marginBottom: 6,
+          }}
+        >
+          {Object.entries(STATUS_LABEL).map(([key, label]) => (
+            <span key={key} style={{ fontSize: 11, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              {STATUS_DOT[key]} {label}
+            </span>
+          ))}
+        </div>
+
+        <div style={{ padding: '0 14px' }}>
           {(patients || []).map((p) => (
             <Link
               key={p.id}
-              href={`/pacientes?id=${p.id}`}
-              style={{
-                display: 'block', padding: '12px 8px', borderBottom: '1px solid var(--border)',
-              }}
+              href={`/pacientes?id=${p.id}&status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
+              style={{ display: 'block', padding: '12px 8px', borderBottom: '1px solid var(--border)' }}
+              className="pressable"
             >
               <div style={{ fontWeight: 700, fontSize: 14 }}>
                 {STATUS_DOT[p.status] || '🟢'} {p.first_name} {p.last_name || ''}
@@ -73,7 +80,9 @@ export default async function PacientesPage({ searchParams }) {
             </Link>
           ))}
           {(!patients || patients.length === 0) && (
-            <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 16 }}>Aún no hay pacientes cargados.</p>
+            <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 16 }}>
+              No hay pacientes que coincidan con este filtro.
+            </p>
           )}
         </div>
       </div>
@@ -81,7 +90,7 @@ export default async function PacientesPage({ searchParams }) {
       {detail && (
         <div style={{ flex: 1, background: 'var(--surface)' }}>
           <div style={{ padding: '10px 16px 0' }}>
-            <Link href="/pacientes" style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
+            <Link href={backHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               ‹ Todos los pacientes
             </Link>
           </div>

@@ -29,14 +29,31 @@ export async function createAppointment(formData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const name = formData.get('name')?.toString().trim();
+  const type = formData.get('type')?.toString() || 'patient';
   const date = formData.get('date')?.toString();
   const time = formData.get('time')?.toString();
+
+  if (!date || !time) return;
+
+  if (type === 'block') {
+    await supabase.from('appointments').insert({
+      owner_id: user.id,
+      type: 'block',
+      date,
+      time,
+      attendance: 'pending',
+      payment: 'na',
+    });
+    revalidatePath('/agenda');
+    return;
+  }
+
+  const name = formData.get('name')?.toString().trim();
   const modality = formData.get('modality')?.toString();
   const price = parseFloat(formData.get('price')?.toString() || '0');
   const repeat = formData.get('repeat')?.toString() || 'once';
 
-  if (!name || !date || !time) return;
+  if (!name) return;
 
   const [first, ...rest] = name.split(' ');
   const last = rest.join(' ') || null;
@@ -102,5 +119,11 @@ export async function createAppointment(formData) {
   }
   await supabase.from('appointments').insert(rows);
 
+  revalidatePath('/agenda');
+}
+
+export async function deleteBlock(id) {
+  const supabase = createClient();
+  await supabase.from('appointments').delete().eq('id', id).eq('type', 'block');
   revalidatePath('/agenda');
 }

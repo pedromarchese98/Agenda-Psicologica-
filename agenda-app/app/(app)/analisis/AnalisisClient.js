@@ -1,0 +1,310 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, Legend,
+} from 'recharts';
+
+const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
+const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+export default function AnalisisClient({ appointments, activeCount }) {
+  const [period, setPeriod] = useState('month');
+  const [rangeFrom, setRangeFrom] = useState('');
+  const [rangeTo, setRangeTo] = useState('');
+  const [patientFilter, setPatientFilter] = useState('');
+  const [sortCol, setSortCol] = useState('total');
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const today = new Date();
+
+  const { from, to } = useMemo(() => {
+    const y = today.getFullYear(), m = today.getMonth();
+    if (period === 'month') return { from: `${y}-${pad(m + 1)}-01`, to: toDateStr(today) };
+    if (period === 'quarter') {
+      const qm = Math.max(0, m - 2);
+      return { from: `${y}-${pad(qm + 1)}-01`, to: toDateStr(today) };
+    }
+    if (period === 'year') return { from: `${y}-01-01`, to: toDateStr(today) };
+    if (period === 'custom') return { from: rangeFrom || `${y}-01-01`, to: rangeTo || toDateStr(today) };
+    return { from: `${y}-${pad(m + 1)}-01`, to: toDateStr(today) };
+  }, [period, rangeFrom, rangeTo]);
+
+  const filtered = useMemo(() => {
+    let list = appointments.filter((a) => a.date >= from && a.date <= to);
+    if (patientFilter.trim()) {
+      const q = patientFilter.trim().toLowerCase();
+      list = list.filter((a) => {
+        const name = a.patients ? `${a.patients.first_name} ${a.patients.last_name || ''}`.toLowerCase() : '';
+        return name.includes(q);
+      });
+    }
+    return list;
+  }, [appointments, from, to, patientFilter]);
+
+  const stats = useMemo(() => {
+    let total = 0, att = 0, cancDay = 0, cancAdv = 0, cancFree = 0, coll = 0, debt = 0, cash = 0, transf = 0;
+    const byPatient = {};
+    const byMonth = {};
+    const byWeekday = [0, 0, 0, 0, 0, 0, 0];
+
+    filtered.forEach((a) => {
+      total++;
+      const pr = Number(a.price) || 0;
+      const name = a.patients ? `${a.patients.first_name} ${a.patients.last_name || ''}`.trim() : 'Sin nombre';
+      if (!byPatient[name]) byPatient[name] = { name, total: 0, att: 0, cancDay: 0, cancAdv: 0, cancFree: 0, paid: 0, debt: 0 };
+      byPatient[name].total++;
+
+      const mkey = a.date.slice(0, 7);
+      if (!byMonth[mkey]) byMonth[mkey] = { sessions: 0, revenue: 0 };
+
+      const weekday = (new Date(a.date + 'T00:00:00').getDay() + 6) % 7; // 0=lunes
+
+      if (a.attendance === 'yes') {
+        att++; byPatient[name].att++;
+        byMonth[mkey].sessions++;
+        if (a.payment === 'paid') byMonth[mkey].revenue += pr;
+      }
+      if (a.attendance === 'no') {
+        const isAdv = a.cancel_type === 'advance' || a.payment === 'na';
+        if (isAdv) { cancAdv++; byPatient[name].cancAdv++; } else { cancDay++; byPatient[name].cancDay++; }
+        byWeekday[weekday]++;
+      }
+      if (a.attendance === 'no-free') {
+        cancFree++; byPatient[name].cancFree++;
+        byWeekday[weekday]++;
+      }
+      if (a.payment === 'paid') {
+        coll += pr; byPatient[name].paid += pr;
+        if (a.payment_method === 'cash') cash += pr;
+        if (a.payment_method === 'transfer') transf += pr;
+      }
+      if (a.payment === 'unpaid') { debt += pr; byPatient[name].debt += pr; }
+    });
+
+    const totalCanc = cancDay + cancAdv + cancFree;
+    const attendanceRate = total ? Math.round((att / total) * 100) : 0;
+
+    const monthKeys = Object.keys(byMonth).sort();
+    const monthlyData = monthKeys.map((k) => ({
+      label: `${MONTH_SHORT[parseInt(k.slice(5)) - 1]}`,
+      sesiones: byMonth[k].sessions,
+      recaudado: byMonth[k].revenue,
+    }));
+
+    const weekdayData = WEEKDAY_LABELS.map((label, i) => ({ label, cancelaciones: byWeekday[i] }));
+
+    // Tasa de abandono/alta: tiempo entre primer y último turno para pacientes dados de alta o abandonados
+    const durations = [];
+    Object.values(
+      appointments.reduce((acc, a) => {
+        const key = a.patient_id;
+        if (!key) return acc;
+        if (!acc[key]) acc[key] = { dates: [], status: a.patients?.status };
+        acc[key].dates.push(a.date);
+        return acc;
+      }, {})
+    ).forEach((p) => {
+      if (p.dates.length < 2) return;
+      if (!['discharged', 'abandoned'].includes(p.status)) return;
+      const sorted = [...p.dates].sort();
+      const days = (new Date(sorted[sorted.length - 1]) - new Date(sorted[0])) / 86400000;
+      durations.push(days);
+    });
+    const avgDurationDays = durations.length ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : null;
+
+    return {
+      total, att, cancDay, cancAdv, cancFree, totalCanc, coll, debt, cash, transf, attendanceRate,
+      byPatient: Object.values(byPatient).sort((a, b) => b.total - a.total),
+      monthlyData, weekdayData, avgDurationDays,
+    };
+  }, [filtered, appointments]);
+
+  const sortedPatients = useMemo(() => {
+    const arr = [...stats.byPatient];
+    arr.sort((a, b) => {
+      const av = a[sortCol], bv = b[sortCol];
+      if (typeof av === 'string') return sortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+      return sortAsc ? av - bv : bv - av;
+    });
+    return arr;
+  }, [stats.byPatient, sortCol, sortAsc]);
+
+  function sortBy(col) {
+    if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(false); }
+  }
+  const arrow = (col) => (sortCol === col ? (sortAsc ? '↑' : '↓') : '');
+
+  const debtors = stats.byPatient.filter((p) => p.debt > 0).sort((a, b) => b.debt - a.debt);
+
+  const kpis = [
+    { label: 'Pacientes activos', value: activeCount, color: 'var(--navy)' },
+    { label: 'Sesiones', value: stats.total, color: 'var(--teal)' },
+    { label: 'Asistencia', value: `${stats.attendanceRate}%`, sub: `${stats.att} de ${stats.total}`, color: 'var(--sage)' },
+    { label: 'Cancelaciones', value: stats.totalCanc, sub: `Día: ${stats.cancDay} · Anticip.: ${stats.cancAdv} · Liberó: ${stats.cancFree}`, color: 'var(--rose)' },
+    { label: 'Recaudado', value: fmt$(stats.coll), color: 'var(--teal)' },
+    { label: 'Pendiente de cobro', value: fmt$(stats.debt), color: 'var(--amber)' },
+    { label: 'Efectivo', value: fmt$(stats.cash), color: 'var(--navy)' },
+    { label: 'Transferencia', value: fmt$(stats.transf), color: 'var(--navy)' },
+  ];
+  if (stats.avgDurationDays != null) {
+    kpis.push({ label: 'Duración prom. de tratamiento', value: `${Math.round(stats.avgDurationDays / 30)} meses`, sub: '(altas y abandonos)', color: 'var(--violet)' });
+  }
+
+  return (
+    <div style={{ padding: 16 }}>
+      <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>Análisis</h2>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {[['month', 'Mes en curso'], ['quarter', 'Últimos 3 meses'], ['year', 'Año en curso'], ['custom', 'Personalizado']].map(([v, l]) => (
+          <button
+            key={v}
+            onClick={() => setPeriod(v)}
+            className="pressable"
+            style={{
+              padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: '1px solid var(--border)',
+              background: period === v ? 'var(--navy)' : 'var(--card)', color: period === v ? '#fff' : 'var(--text-md)',
+            }}
+          >
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {period === 'custom' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: 'var(--text-lt)' }}>a</span>
+          <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+        </div>
+      )}
+
+      <input
+        value={patientFilter}
+        onChange={(e) => setPatientFilter(e.target.value)}
+        placeholder="🔍 Filtrar por paciente (vacío = todos)"
+        style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, marginBottom: 14 }}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
+        {kpis.map((k) => (
+          <div key={k.label} className="card" style={{ padding: 14, borderTop: `4px solid ${k.color}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>{k.label}</div>
+            <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{k.value}</div>
+            {k.sub && <div style={{ fontSize: 10, color: 'var(--text-lt)', marginTop: 2 }}>{k.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Evolución mensual
+        </div>
+        {stats.monthlyData.length < 2 ? (
+          <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>No hay suficientes meses en este período para graficar.</p>
+        ) : (
+          <div style={{ width: '100%', height: 200 }}>
+            <ResponsiveContainer>
+              <LineChart data={stats.monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E4E7F0" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                <Tooltip formatter={(v, name) => (name === 'recaudado' ? fmt$(v) : v)} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line yAxisId="left" type="monotone" dataKey="sesiones" stroke="#3ECFB2" strokeWidth={2.5} />
+                <Line yAxisId="right" type="monotone" dataKey="recaudado" stroke="#F0A93A" strokeWidth={2.5} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Cancelaciones por día de la semana
+        </div>
+        {stats.totalCanc === 0 ? (
+          <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>Sin cancelaciones en el período.</p>
+        ) : (
+          <div style={{ width: '100%', height: 180 }}>
+            <ResponsiveContainer>
+              <BarChart data={stats.weekdayData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E4E7F0" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="cancelaciones" fill="#E85D6B" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Deudores del período
+        </div>
+        {debtors.length === 0 ? (
+          <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin deudores 🙌</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {debtors.map((p) => (
+              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span>{p.name}</span>
+                <strong style={{ color: 'var(--amber)' }}>{fmt$(p.debt)}</strong>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 16, overflowX: 'auto' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Resumen por paciente
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 460 }}>
+          <thead>
+            <tr>
+              {[
+                ['name', 'Paciente'], ['total', 'Turnos'], ['att', 'Asistió'],
+                ['cancDay', 'Canc. día'], ['cancAdv', 'Canc. antic.'], ['paid', 'Pagado'], ['debt', 'Deuda'],
+              ].map(([col, label]) => (
+                <th
+                  key={col}
+                  onClick={() => sortBy(col)}
+                  style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid var(--border)', cursor: 'pointer', color: 'var(--text-lt)', fontWeight: 700, whiteSpace: 'nowrap' }}
+                >
+                  {label} {arrow(col)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sortedPatients.map((p) => (
+              <tr key={p.name}>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)', fontWeight: 700 }}>{p.name}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)' }}>{p.total}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)', color: '#2E7D32' }}>{p.att}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)' }}>{p.cancDay}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)' }}>{p.cancAdv}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)', color: '#1B5E20' }}>{fmt$(p.paid)}</td>
+                <td style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)', color: p.debt > 0 ? 'var(--amber)' : 'var(--text-lt)' }}>
+                  {p.debt > 0 ? fmt$(p.debt) : '—'}
+                </td>
+              </tr>
+            ))}
+            {sortedPatients.length === 0 && (
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-lt)', padding: 16 }}>Sin datos para este período.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

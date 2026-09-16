@@ -19,8 +19,10 @@ export default function SwipeDayNav({ prevHref, nextHref, dateKey, children }) {
 
     // Gesto horizontal claro (no un scroll vertical accidental)
     if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      const target = dx > 0 ? prevHref : nextHref;
+      if (target === '#') return;
       if (navigator.vibrate) navigator.vibrate(8);
-      router.push(dx > 0 ? prevHref : nextHref);
+      router.push(target);
     }
   }
 
