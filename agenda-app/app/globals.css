@@ -1,22 +1,31 @@
 :root {
+  /* ── Marca (se mantiene: navy + teal que ya te gustaba) ── */
   --navy: #0F1729;
   --navy-md: #16213A;
   --navy-lt: #1E2C4A;
   --teal: #3ECFB2;
-  --teal-dk: #22A98F;
-  --amber: #F0A93A;
-  --rose: #E85D6B;
-  --sage: #5BC08A;
-  --violet: #9B7FE0;
-  --surface: #F6F7FB;
+  --teal-dk: #1F9C82;
+  --amber: #D9822B;
+  --rose: #D14D5C;
+  --sage: #4CAF7D;
+  --violet: #8B6FD1;
+
+  /* ── Neutros estilo shadcn/ui (zinc), en vez de grises genéricos ── */
+  --surface: #FAFAFA;
   --card: #FFFFFF;
-  --text: #10162B;
-  --text-md: #545E77;
-  --text-lt: #9098AC;
-  --border: #E4E7F0;
-  --radius-sm: 10px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
+  --text: #18181B;
+  --text-md: #52525B;
+  --text-lt: #A1A1AA;
+  --border: #E4E4E7;
+  --muted: #F4F4F5;
+  --ring: rgba(31, 156, 130, 0.45);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
 }
@@ -28,106 +37,132 @@ html, body {
   padding: 0;
   background: var(--surface);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-family: var(--font-inter, -apple-system), BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
+  letter-spacing: -0.01em;
 }
 
 a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
+h1, h2, h3 { letter-spacing: -0.02em; }
 
 input, select, textarea {
   font-family: inherit;
   font-size: 16px; /* evita zoom automático en iOS al enfocar */
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--teal-dk) !important;
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 ::-webkit-scrollbar { display: none; }
 
+/* ── Botones (variantes al estilo shadcn: default / secondary / destructive) ── */
 .btn {
   border: none;
   border-radius: var(--radius-sm);
-  padding: 13px 18px;
-  font-size: 15px;
+  padding: 10px 16px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: filter .12s ease, transform .12s ease, opacity .12s ease;
 }
+.btn:focus-visible { box-shadow: 0 0 0 3px var(--ring); }
 .btn-primary { background: var(--teal); color: var(--navy); }
-.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
-.btn:active { transform: scale(0.97); }
+.btn-primary:hover { filter: brightness(0.97); }
+.btn-secondary { background: var(--muted); color: var(--text); border: 1px solid var(--border); }
+.btn-destructive { background: #FDEBEC; color: var(--rose); }
 
+.pressable { transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
+.pressable:active { transform: scale(0.96); opacity: 0.85; }
+
+/* ── Tarjetas ── */
 .card {
   background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  box-shadow: 0 1px 3px rgba(16, 22, 43, 0.06), 0 1px 2px rgba(16, 22, 43, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
-.pressable {
-  transition: transform 0.12s ease, opacity 0.12s ease;
-  -webkit-tap-highlight-color: transparent;
+/* ── Badge (pills de estado, al estilo shadcn) ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
 }
-.pressable:active {
-  transform: scale(0.96);
-  opacity: 0.85;
-}
+.badge-teal   { background: #E7F8F3; color: var(--teal-dk); }
+.badge-amber  { background: #FCF1E3; color: var(--amber); }
+.badge-rose   { background: #FBEAEC; color: var(--rose); }
+.badge-violet { background: #F1ECFB; color: var(--violet); }
+.badge-blue   { background: #E9F0FD; color: #3B6FD9; }
+.badge-neutral{ background: var(--muted); color: var(--text-md); }
 
 /* ── Transición de la Agenda al cambiar de día ── */
-.day-fade-in {
-  animation: dayFadeIn 0.22s ease both;
-}
+.day-fade-in { animation: dayFadeIn 0.22s ease both; }
 @keyframes dayFadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Bottom sheet (modal estilo iOS) ── */
-.sheet-backdrop {
-  animation: backdropFadeIn 0.25s ease both;
-}
-@keyframes backdropFadeIn {
-  from { background: rgba(15,23,41,0); }
-  to   { background: rgba(15,23,41,.5); }
-}
-.sheet-box {
-  animation: sheetSlideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-@keyframes sheetSlideUp {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
-.sheet-box.closing {
-  animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
-}
-@keyframes sheetSlideDown {
-  from { transform: translateY(0); }
-  to   { transform: translateY(100%); }
-}
+.sheet-backdrop { animation: backdropFadeIn 0.25s ease both; }
+@keyframes backdropFadeIn { from { background: rgba(15,23,41,0); } to { background: rgba(15,23,41,.5); } }
+.sheet-box { animation: sheetSlideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes sheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-box.closing { animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1) both; }
+@keyframes sheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
 
 /* ── Botón flotante ── */
 .fab {
   position: fixed;
   right: 18px;
   bottom: calc(78px + var(--safe-bottom, 0px));
-  width: 56px;
-  height: 56px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
-  background: var(--teal);
-  color: var(--navy);
+  background: var(--navy);
+  color: var(--teal);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 26px;
   font-weight: 700;
   border: none;
-  box-shadow: 0 6px 18px rgba(34, 169, 143, 0.4);
+  box-shadow: var(--shadow-md);
   z-index: 40;
 }
 
 /* ── Indicador del tab activo ── */
-.tab-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--teal-dk);
-  transition: opacity 0.15s ease;
+.tab-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--teal-dk); transition: opacity 0.15s ease; }
+
+/* ── Segmented control (Día/Semana/Mes/Disponible) ── */
+.segmented {
+  display: inline-flex;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 2px;
 }
+.segmented-item {
+  padding: 6px 13px;
+  border-radius: calc(var(--radius-sm) - 2px);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-md);
+  background: transparent;
+}
+.segmented-item.active { background: var(--card); color: var(--navy); box-shadow: var(--shadow-sm); }

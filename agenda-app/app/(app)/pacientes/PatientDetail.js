@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation';
 import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule, deletePatient } from './actions';
 
 const STATUS = {
-  active: { label: 'Activo en tratamiento', color: 'var(--teal-dk)', bg: '#E6F8F3' },
-  paused: { label: 'Pausado (viaje/licencia)', color: 'var(--amber)', bg: '#FDF3E3' },
-  suspended: { label: 'Suspendido', color: 'var(--amber)', bg: '#FDF3E3' },
-  abandoned: { label: 'Abandonó', color: 'var(--rose)', bg: '#FCEBED' },
-  discharged: { label: 'Alta', color: 'var(--violet)', bg: '#F1ECFB' },
-  referred: { label: 'Derivado', color: '#3B6FD9', bg: '#E9F0FD' },
+  active: { label: 'Activo en tratamiento', badge: 'badge-teal', color: 'var(--teal-dk)' },
+  paused: { label: 'Pausado (viaje/licencia)', badge: 'badge-amber', color: 'var(--amber)' },
+  suspended: { label: 'Suspendido', badge: 'badge-amber', color: 'var(--amber)' },
+  abandoned: { label: 'Abandonó', badge: 'badge-rose', color: 'var(--rose)' },
+  discharged: { label: 'Alta', badge: 'badge-violet', color: 'var(--violet)' },
+  referred: { label: 'Derivado', badge: 'badge-blue', color: '#3B6FD9' },
 };
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
@@ -56,9 +56,7 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
         </div>
         <div>
           <h2 style={{ margin: 0, fontSize: 19 }}>{fullName}</h2>
-          <span style={{ display: 'inline-block', marginTop: 4, padding: '3px 11px', borderRadius: 20, fontSize: 12, fontWeight: 700, color: st.color, background: st.bg }}>
-            {st.label}
-          </span>
+          <span className={`badge ${st.badge}`} style={{ marginTop: 4 }}>{st.label}</span>
         </div>
       </div>
 

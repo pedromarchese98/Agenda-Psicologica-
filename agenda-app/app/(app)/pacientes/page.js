@@ -4,8 +4,9 @@ import PatientDetail from './PatientDetail';
 import PatientDetailModal from './PatientDetailModal';
 import PatientsFilterBar from './PatientsFilterBar';
 
-const STATUS_DOT = {
-  active: '🟢', paused: '🟡', suspended: '🟠', abandoned: '🔴', discharged: '🟣', referred: '🔵',
+const STATUS_BADGE = {
+  active: 'badge-teal', paused: 'badge-amber', suspended: 'badge-amber',
+  abandoned: 'badge-rose', discharged: 'badge-violet', referred: 'badge-blue',
 };
 const STATUS_LABEL = {
   active: 'Activo', paused: 'Pausado', suspended: 'Suspendido',
@@ -80,9 +81,7 @@ export default async function PacientesPage({ searchParams }) {
           }}
         >
           {Object.entries(STATUS_LABEL).map(([key, label]) => (
-            <span key={key} style={{ fontSize: 11, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {STATUS_DOT[key]} {label}
-            </span>
+            <span key={key} className={`badge ${STATUS_BADGE[key]}`}>{label}</span>
           ))}
         </div>
 
@@ -106,11 +105,11 @@ export default async function PacientesPage({ searchParams }) {
                 {initials(p)}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
                   {p.first_name} {p.last_name || ''}
-                  <span style={{ fontSize: 11 }}>{STATUS_DOT[p.status] || ''}</span>
+                  <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`}>{STATUS_LABEL[p.status] || 'Activo'}</span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-lt)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-lt)', marginTop: 2 }}>
                   {lastVisitByPatient[p.id] ? `Última sesión: ${lastVisitByPatient[p.id]}` : 'Sin turnos registrados'}
                 </div>
               </div>

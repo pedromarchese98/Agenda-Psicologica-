@@ -171,19 +171,9 @@ export default async function AgendaPage({ searchParams }) {
     <SwipeDayNav prevHref={view === 'availability' ? '#' : prevHref} nextHref={view === 'availability' ? '#' : nextHref} dateKey={`${view}-${dateStr}`}>
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 8, padding: 3, gap: 2 }}>
+          <div className="segmented">
             {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes'], ['availability', 'Disponible']].map(([v, label]) => (
-              <Link
-                key={v}
-                href={viewLink(v)}
-                className="pressable"
-                style={{
-                  padding: '5px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700,
-                  background: view === v ? 'var(--card)' : 'transparent',
-                  color: view === v ? 'var(--navy)' : 'var(--text-md)',
-                  boxShadow: view === v ? '0 1px 4px rgba(0,0,0,.12)' : 'none',
-                }}
-              >
+              <Link key={v} href={viewLink(v)} className={`pressable segmented-item${view === v ? ' active' : ''}`}>
                 {label}
               </Link>
             ))}
