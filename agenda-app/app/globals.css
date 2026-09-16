@@ -61,3 +61,73 @@ input, select, textarea {
   border-radius: var(--radius-md);
   box-shadow: 0 1px 3px rgba(16, 22, 43, 0.06), 0 1px 2px rgba(16, 22, 43, 0.04);
 }
+
+.pressable {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.pressable:active {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+/* ── Transición de la Agenda al cambiar de día ── */
+.day-fade-in {
+  animation: dayFadeIn 0.22s ease both;
+}
+@keyframes dayFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Bottom sheet (modal estilo iOS) ── */
+.sheet-backdrop {
+  animation: backdropFadeIn 0.25s ease both;
+}
+@keyframes backdropFadeIn {
+  from { background: rgba(15,23,41,0); }
+  to   { background: rgba(15,23,41,.5); }
+}
+.sheet-box {
+  animation: sheetSlideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.sheet-box.closing {
+  animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+@keyframes sheetSlideDown {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+/* ── Botón flotante ── */
+.fab {
+  position: fixed;
+  right: 18px;
+  bottom: calc(78px + var(--safe-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--teal);
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 6px 18px rgba(34, 169, 143, 0.4);
+  z-index: 40;
+}
+
+/* ── Indicador del tab activo ── */
+.tab-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--teal-dk);
+  transition: opacity 0.15s ease;
+}

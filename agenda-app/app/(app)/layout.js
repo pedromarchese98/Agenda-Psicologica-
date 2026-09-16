@@ -65,6 +65,7 @@ export default function AppLayout({ children }) {
             <Link
               key={tab.href}
               href={tab.href}
+              className="pressable"
               style={{
                 flex: 1,
                 display: 'flex',
@@ -76,8 +77,11 @@ export default function AppLayout({ children }) {
                 fontWeight: 700,
               }}
             >
-              <span style={{ fontSize: 21 }}>{tab.icon}</span>
+              <span style={{ fontSize: 21, transform: active ? 'scale(1.08)' : 'scale(1)', transition: 'transform .15s ease' }}>
+                {tab.icon}
+              </span>
               {tab.label}
+              <span className="tab-dot" style={{ opacity: active ? 1 : 0 }} />
             </Link>
           );
         })}

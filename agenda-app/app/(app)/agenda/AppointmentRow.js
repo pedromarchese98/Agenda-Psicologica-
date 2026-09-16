@@ -36,7 +36,7 @@ export default function AppointmentRow({ appt }) {
 
   return (
     <div
-      className="card"
+      className="card pressable"
       style={{
         borderLeft: `5px solid ${borderColorFor(appt)}`,
         padding: '12px 14px',
@@ -44,6 +44,7 @@ export default function AppointmentRow({ appt }) {
         flexDirection: 'column',
         gap: 8,
         opacity: isPending ? 0.6 : 1,
+        transition: 'opacity .15s ease, transform .12s ease',
       }}
     >
       <div
@@ -69,10 +70,11 @@ export default function AppointmentRow({ appt }) {
               key={key}
               onClick={() =>
                 startTransition(() => {
+                  if (navigator.vibrate) navigator.vibrate(6);
                   updateAttendance(appt.id, key);
                 })
               }
-              className="btn"
+              className="btn pressable"
               style={{
                 fontSize: 12,
                 padding: '7px 10px',
@@ -90,10 +92,11 @@ export default function AppointmentRow({ appt }) {
                   key={key}
                   onClick={() =>
                     startTransition(() => {
+                      if (navigator.vibrate) navigator.vibrate(6);
                       updatePayment(appt.id, key, key === 'paid' ? 'transfer' : 'none');
                     })
                   }
-                  className="btn"
+                  className="btn pressable"
                   style={{
                     fontSize: 12,
                     padding: '7px 10px',
