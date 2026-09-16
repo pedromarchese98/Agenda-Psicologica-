@@ -3,6 +3,7 @@ import Link from 'next/link';
 import DayView from './DayView';
 import WeekView from './WeekView';
 import MonthView from './MonthView';
+import AvailabilityView from './AvailabilityView';
 import SwipeDayNav from './SwipeDayNav';
 
 function pad(n) {
@@ -124,14 +125,54 @@ export default async function AgendaPage({ searchParams }) {
     body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} />;
   }
 
+  if (view === 'availability') {
+    navLabel = 'Disponibilidad — próximos 7 días';
+    const start = new Date(todayKey + 'T00:00:00');
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    const { data: weekAppts } = await supabase
+      .from('appointments')
+      .select('date, time, type, id')
+      .gte('date', todayKey).lte('date', toDateStr(end));
+
+    const byDate = {};
+    (weekAppts || []).forEach((a) => {
+      if (!byDate[a.date]) byDate[a.date] = [];
+      byDate[a.date].push(a);
+    });
+
+    const HOUR_START = 7, HOUR_END = 20;
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const cur = new Date(start);
+      cur.setDate(start.getDate() + i);
+      const key = toDateStr(cur);
+      const dayAppts = byDate[key] || [];
+      const slots = [];
+      for (let h = HOUR_START; h <= HOUR_END; h++) {
+        const hStr = pad(h);
+        const inHour = dayAppts.filter((a) => a.time?.startsWith(hStr + ':'));
+        const patientOne = inHour.find((a) => a.type === 'patient' || a.type === 'other');
+        const blockOne = inHour.find((a) => a.type === 'block');
+        if (patientOne) slots.push({ time: `${hStr}:00`, status: 'occupied' });
+        else if (blockOne) slots.push({ time: `${hStr}:00`, status: 'blocked', id: blockOne.id });
+        else slots.push({ time: `${hStr}:00`, status: 'free' });
+      }
+      days.push({ key, day: cur.getDate(), month: cur.getMonth() + 1, weekday: cur.getDay(), slots });
+    }
+
+    body = <AvailabilityView days={days} />;
+  }
+
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
 
   return (
-    <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={`${view}-${dateStr}`}>
+    <SwipeDayNav prevHref={view === 'availability' ? '#' : prevHref} nextHref={view === 'availability' ? '#' : nextHref} dateKey={`${view}-${dateStr}`}>
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 8, padding: 3, gap: 2 }}>
-            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([v, label]) => (
+            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes'], ['availability', 'Disponible']].map(([v, label]) => (
               <Link
                 key={v}
                 href={viewLink(v)}
@@ -150,14 +191,14 @@ export default async function AgendaPage({ searchParams }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
+          {view !== 'availability' && <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>}
           <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
             {navLabel}
           </div>
-          <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
+          {view !== 'availability' && <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>}
         </div>
 
-        {dateStr !== todayKey && (
+        {dateStr !== todayKey && view !== 'availability' && (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <Link href={todayHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               Volver a hoy

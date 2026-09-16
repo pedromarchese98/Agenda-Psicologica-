@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { updateAttendance, updatePayment, rescheduleAppointment } from './actions';
+import { updateAttendance, updatePayment, rescheduleAppointment, deleteAppointment } from './actions';
 
 const ATTENDANCE_LABEL = {
   pending: '⏳ Pendiente',
@@ -62,6 +62,11 @@ export default function AppointmentRow({ appt, compact }) {
     setReschedOpen(false);
   }
 
+  function handleDelete() {
+    if (!confirm(`¿Eliminar el turno de ${patientName} del ${local.date}?`)) return;
+    startTransition(() => { deleteAppointment(local.id); });
+  }
+
   return (
     <div
       className="card pressable"
@@ -111,13 +116,14 @@ export default function AppointmentRow({ appt, compact }) {
           </div>
 
           {!reschedOpen ? (
-            <button
-              onClick={() => setReschedOpen(true)}
-              className="btn btn-secondary pressable"
-              style={{ fontSize: 12, alignSelf: 'flex-start' }}
-            >
-              📆 Reprogramar solo este turno
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 12, flex: 1 }}>
+                📆 Reprogramar
+              </button>
+              <button onClick={handleDelete} className="btn pressable" style={{ fontSize: 12, flex: 1, background: '#FFEBEE', color: 'var(--rose)' }}>
+                🗑 Eliminar turno
+              </button>
+            </div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'var(--surface)', padding: 8, borderRadius: 8 }}>
               <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}

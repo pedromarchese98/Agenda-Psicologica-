@@ -29,6 +29,12 @@ export async function rescheduleAppointment(appointmentId, newDate, newTime) {
   revalidatePath('/agenda');
 }
 
+export async function deleteAppointment(appointmentId) {
+  const supabase = createClient();
+  await supabase.from('appointments').delete().eq('id', appointmentId).eq('type', 'patient');
+  revalidatePath('/agenda');
+}
+
 export async function createAppointment(formData) {
   const supabase = createClient();
   const {

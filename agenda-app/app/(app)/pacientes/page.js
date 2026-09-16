@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import PatientDetail from './PatientDetail';
+import PatientDetailModal from './PatientDetailModal';
 import PatientsFilterBar from './PatientsFilterBar';
 
 const STATUS_DOT = {
@@ -69,16 +70,7 @@ export default async function PacientesPage({ searchParams }) {
 
   return (
     <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100dvh - 130px)' }}>
-      <div
-        style={{
-          width: detail ? 0 : '100%',
-          maxWidth: detail ? 0 : 'none',
-          overflow: 'hidden',
-          borderRight: '1px solid var(--border)',
-          background: 'var(--card)',
-        }}
-        className="patients-list-col"
-      >
+      <div style={{ width: '100%', background: 'var(--card)' }}>
         <PatientsFilterBar status={status} q={q} />
 
         <div
@@ -133,14 +125,9 @@ export default async function PacientesPage({ searchParams }) {
       </div>
 
       {detail && (
-        <div style={{ flex: 1, background: 'var(--surface)' }}>
-          <div style={{ padding: '10px 16px 0' }}>
-            <Link href={backHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
-              ‹ Todos los pacientes
-            </Link>
-          </div>
+        <PatientDetailModal backHref={backHref}>
           <PatientDetail patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats} />
-        </div>
+        </PatientDetailModal>
       )}
     </div>
   );

@@ -1,52 +1,34 @@
 'use client';
 
-import { useRef, useState, useTransition, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import AppointmentRow from './AppointmentRow';
 import EventRow from './EventRow';
-import { createAppointment, deleteEvent } from './actions';
+import { createAppointment } from './actions';
 
 const HOUR_START = 7;
 const HOUR_END = 20;
-const HOUR_PX = 68;
 
-function timeToMinutes(t) {
-  const [h, m] = t.split(':').map(Number);
-  return (h - HOUR_START) * 60 + m;
-}
 function pad(n) {
   return String(n).padStart(2, '0');
 }
 
 export default function DayView({ dateStr, appointments, blocks, others, patients }) {
-  const gridRef = useRef(null);
   const [modalTime, setModalTime] = useState(null); // null = cerrado
   const [closing, setClosing] = useState(false);
   const [formType, setFormType] = useState('patient');
   const [eventIsPaid, setEventIsPaid] = useState(false);
-  const [, startTransition] = useTransition();
-  const [hiddenIds, setHiddenIds] = useState([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
   const hours = [];
   for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
-  const totalHeight = hours.length * HOUR_PX;
 
-  function timeFromClickY(y) {
-    let minutesFromStart = Math.max(0, Math.round((y / HOUR_PX) * 60 / 30) * 30);
-    const totalMinutes = HOUR_START * 60 + minutesFromStart;
-    const h = Math.min(HOUR_END, Math.floor(totalMinutes / 60));
-    const m = totalMinutes % 60;
-    return `${pad(h)}:${pad(m)}`;
-  }
-
-  function handleGridClick(e) {
-    if (!gridRef.current) return;
-    const rect = gridRef.current.getBoundingClientRect();
+  function openModalAt(time) {
     setFormType('patient');
-    setModalTime(timeFromClickY(e.clientY - rect.top));
+    setEventIsPaid(false);
+    setModalTime(time);
   }
 
   function close() {
@@ -56,17 +38,6 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
       setClosing(false);
     }, 220);
   }
-
-  function removeBlock(id) {
-    if (navigator.vibrate) navigator.vibrate(6);
-    setHiddenIds((prev) => [...prev, id]);
-    startTransition(() => {
-      deleteEvent(id);
-    });
-  }
-
-  const visibleBlocks = blocks.filter((b) => !hiddenIds.includes(b.id));
-  const visibleOthers = others;
 
   const modal = modalTime !== null && (
     <div
@@ -181,82 +152,43 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
 
   return (
     <div style={{ padding: '4px 16px 90px' }}>
-      <div
-        ref={gridRef}
-        onClick={handleGridClick}
-        style={{ position: 'relative', height: totalHeight, cursor: 'pointer' }}
-      >
-        {hours.map((h, i) => (
-          <div
-            key={h}
-            style={{
-              position: 'absolute', top: i * HOUR_PX, left: 0, right: 0, height: HOUR_PX,
-              borderTop: '1px solid var(--border)', display: 'flex', pointerEvents: 'none',
-            }}
-          >
-            <span style={{ width: 46, fontSize: 11, color: 'var(--text-lt)', transform: 'translateY(-7px)', flexShrink: 0 }}>
-              {pad(h)}:00
-            </span>
-          </div>
-        ))}
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        {hours.map((h) => {
+          const hourStr = pad(h);
+          const apptsInHour = appointments.filter((a) => a.time?.startsWith(hourStr + ':'));
+          const othersInHour = others.filter((o) => o.time?.startsWith(hourStr + ':'));
+          const isBlocked = blocks.some((b) => b.time?.startsWith(hourStr + ':'));
+          const isFree = apptsInHour.length === 0 && othersInHour.length === 0 && !isBlocked;
 
-        {visibleBlocks.map((b) => {
-          const startMin = Math.max(0, timeToMinutes(b.time?.slice(0, 5)));
-          const top = (startMin / 60) * HOUR_PX + 2;
           return (
-            <div
-              key={b.id}
-              onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }}
-              className="pressable"
-              style={{
-                position: 'absolute', top, left: 52, right: 2, height: 40, zIndex: 4,
-                background: '#ECEFF6', border: '1px dashed #B7C0D6', borderRadius: 8,
-                display: 'flex', alignItems: 'center', paddingLeft: 10,
-                fontSize: 11, fontWeight: 700, color: 'var(--text-lt)',
-              }}
-            >
-              🚫 Bloqueado — tocá para liberar
-            </div>
-          );
-        })}
-
-        {visibleOthers.map((o) => {
-          const startMin = Math.max(0, timeToMinutes(o.time?.slice(0, 5)));
-          const top = (startMin / 60) * HOUR_PX + 2;
-          return (
-            <div key={o.id} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top, left: 52, right: 2, minHeight: 40, zIndex: 5 }}>
-              <EventRow event={o} />
-            </div>
-          );
-        })}
-
-        {appointments.map((appt) => {
-          const startMin = Math.max(0, timeToMinutes(appt.time?.slice(0, 5)));
-          const top = (startMin / 60) * HOUR_PX + 2;
-          const height = Math.max(46, (48 / 60) * HOUR_PX);
-          return (
-            <div
-              key={appt.id}
-              onClick={(e) => e.stopPropagation()}
-              style={{ position: 'absolute', top, left: 52, right: 2, minHeight: height, zIndex: 5 }}
-            >
-              <AppointmentRow appt={appt} compact />
+            <div key={h} style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--border)', padding: '8px 0', minHeight: 56 }}>
+              <div style={{ width: 40, fontSize: 11, color: 'var(--text-lt)', flexShrink: 0, paddingTop: 2 }}>{hourStr}:00</div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {apptsInHour.map((appt) => (
+                  <AppointmentRow key={appt.id} appt={appt} compact />
+                ))}
+                {othersInHour.map((o) => (
+                  <EventRow key={o.id} event={o} />
+                ))}
+                {isFree && (
+                  <button
+                    onClick={() => openModalAt(`${hourStr}:00`)}
+                    className="pressable"
+                    style={{
+                      textAlign: 'left', background: '#E6F8F3', border: '1px dashed #9FE0CE', borderRadius: 8,
+                      padding: '9px 12px', fontSize: 12, fontWeight: 700, color: 'var(--teal-dk)', cursor: 'pointer',
+                    }}
+                  >
+                    Libre — tocar para agendar
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {appointments.length === 0 && visibleBlocks.length === 0 && visibleOthers.length === 0 && (
-        <p style={{ textAlign: 'center', color: 'var(--text-lt)', fontSize: 12, marginTop: 14 }}>
-          Tocá cualquier horario libre para agendar, o deslizá ↔ para cambiar de día.
-        </p>
-      )}
-
-      <button
-        className="fab pressable"
-        onClick={() => { setFormType('patient'); setModalTime(pad(new Date().getHours()) + ':00'); }}
-        aria-label="Nuevo turno"
-      >
+      <button className="fab pressable" onClick={() => openModalAt(pad(new Date().getHours()) + ':00')} aria-label="Nuevo turno">
         +
       </button>
 
