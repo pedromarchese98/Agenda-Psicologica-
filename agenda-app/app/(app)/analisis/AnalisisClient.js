@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, Legend,
 } from 'recharts';
+import { registerPayment } from './actions';
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -13,7 +14,7 @@ const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'se
 function pad(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
-export default function AnalisisClient({ appointments, activeCount }) {
+export default function AnalisisClient({ appointments, activeCount, allDebts, events }) {
   const [period, setPeriod] = useState('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -22,6 +23,37 @@ export default function AnalisisClient({ appointments, activeCount }) {
   const [sortAsc, setSortAsc] = useState(false);
 
   const today = new Date();
+
+  const [debtPending, startDebtTransition] = useTransition();
+  const [openDebtId, setOpenDebtId] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('transfer');
+  const [localDebts, setLocalDebts] = useState(allDebts);
+
+  const monthProjection = useMemo(() => {
+    const y = today.getFullYear(), m = today.getMonth();
+    const monthStart = `${y}-${pad(m + 1)}-01`;
+    const monthEnd = `${y}-${pad(m + 1)}-31`;
+    return appointments
+      .filter((a) => a.date >= monthStart && a.date <= monthEnd && a.attendance !== 'no' && a.attendance !== 'no-free')
+      .reduce((s, a) => s + (Number(a.price) || 0), 0);
+  }, [appointments]);
+
+  function remaining(d) {
+    return (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
+  }
+
+  function handleRegisterPayment(debt) {
+    const amount = parseFloat(payAmount) || 0;
+    if (amount <= 0) return;
+    setLocalDebts((prev) => {
+      const updated = prev.map((d) => (d.id === debt.id ? { ...d, amount_paid: (Number(d.amount_paid) || 0) + amount } : d));
+      return updated.filter((d) => remaining(d) > 0.01);
+    });
+    startDebtTransition(() => registerPayment(debt.id, amount, payMethod));
+    setOpenDebtId(null);
+    setPayAmount('');
+  }
 
   const { from, to } = useMemo(() => {
     const y = today.getFullYear(), m = today.getMonth();
@@ -147,16 +179,26 @@ export default function AnalisisClient({ appointments, activeCount }) {
 
   const debtors = stats.byPatient.filter((p) => p.debt > 0).sort((a, b) => b.debt - a.debt);
 
+  const eventsInPeriod = useMemo(() => {
+    const list = events.filter((e) => e.date >= from && e.date <= to);
+    const paid = list.filter((e) => e.payment === 'paid').reduce((s, e) => s + (Number(e.price) || 0), 0);
+    return { count: list.length, paid };
+  }, [events, from, to]);
+
   const kpis = [
     { label: 'Pacientes activos', value: activeCount, color: 'var(--navy)' },
     { label: 'Sesiones', value: stats.total, color: 'var(--teal)' },
     { label: 'Asistencia', value: `${stats.attendanceRate}%`, sub: `${stats.att} de ${stats.total}`, color: 'var(--sage)' },
     { label: 'Cancelaciones', value: stats.totalCanc, sub: `Día: ${stats.cancDay} · Anticip.: ${stats.cancAdv} · Liberó: ${stats.cancFree}`, color: 'var(--rose)' },
     { label: 'Recaudado', value: fmt$(stats.coll), color: 'var(--teal)' },
+    { label: 'Proyección del mes', value: fmt$(monthProjection), sub: 'turnos no cancelados', color: 'var(--teal-dk)' },
     { label: 'Pendiente de cobro', value: fmt$(stats.debt), color: 'var(--amber)' },
     { label: 'Efectivo', value: fmt$(stats.cash), color: 'var(--navy)' },
     { label: 'Transferencia', value: fmt$(stats.transf), color: 'var(--navy)' },
   ];
+  if (eventsInPeriod.count > 0) {
+    kpis.push({ label: 'Eventos', value: eventsInPeriod.count, sub: eventsInPeriod.paid ? `${fmt$(eventsInPeriod.paid)} recaudado` : '', color: '#6A3FA0' });
+  }
   if (stats.avgDurationDays != null) {
     kpis.push({ label: 'Duración prom. de tratamiento', value: `${Math.round(stats.avgDurationDays / 30)} meses`, sub: '(altas y abandonos)', color: 'var(--violet)' });
   }
@@ -255,19 +297,48 @@ export default function AnalisisClient({ appointments, activeCount }) {
       </div>
 
       <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
-          Deudores del período
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
+          Deudores (a la fecha de hoy)
         </div>
-        {debtors.length === 0 ? (
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '0 0 10px' }}>
+          Esta lista muestra toda la deuda pendiente, sin importar el período elegido arriba.
+        </p>
+        {localDebts.length === 0 ? (
           <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin deudores 🙌</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {debtors.map((p) => (
-              <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                <span>{p.name}</span>
-                <strong style={{ color: 'var(--amber)' }}>{fmt$(p.debt)}</strong>
-              </div>
-            ))}
+            {localDebts.map((d) => {
+              const name = d.patients ? `${d.patients.first_name} ${d.patients.last_name || ''}`.trim() : 'Sin nombre';
+              const rem = remaining(d);
+              const isOpen = openDebtId === d.id;
+              return (
+                <div key={d.id} className="card" style={{ padding: 10, border: '1px solid var(--border)' }}>
+                  <div
+                    onClick={() => { setOpenDebtId(isOpen ? null : d.id); setPayAmount(rem.toString()); }}
+                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    <span>{name} <span style={{ color: 'var(--text-lt)', fontSize: 11 }}>· {d.date}</span></span>
+                    <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
+                  </div>
+                  {isOpen && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                      <input
+                        type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                        style={{ flex: 1, minWidth: 90, padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}
+                      />
+                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+                        style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}>
+                        <option value="transfer">Transferencia</option>
+                        <option value="cash">Efectivo</option>
+                      </select>
+                      <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }} onClick={() => handleRegisterPayment(d)} disabled={debtPending}>
+                        Registrar pago
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

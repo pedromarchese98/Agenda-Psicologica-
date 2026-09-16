@@ -19,6 +19,13 @@ export async function updatePatientStatus(patientId, status, reason) {
   revalidatePath('/pacientes');
 }
 
+export async function deletePatient(patientId) {
+  const supabase = createClient();
+  await supabase.from('patients').delete().eq('id', patientId);
+  revalidatePath('/pacientes');
+  revalidatePath('/agenda');
+}
+
 export async function addNote(patientId, text) {
   if (!text?.trim()) return;
   const supabase = createClient();

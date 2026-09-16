@@ -51,9 +51,12 @@ export async function createAppointment(formData) {
 
   if (type === 'other') {
     const title = formData.get('title')?.toString().trim();
+    const isPaid = formData.get('isPaid') === 'on';
+    const price = isPaid ? parseFloat(formData.get('price')?.toString() || '0') : 0;
     if (!title) return;
     await supabase.from('appointments').insert({
-      owner_id: user.id, type: 'other', title, date, time, attendance: 'pending', payment: 'na',
+      owner_id: user.id, type: 'other', title, date, time,
+      attendance: 'pending', payment: isPaid ? 'pending' : 'na', price,
     });
     revalidatePath('/agenda');
     return;
@@ -123,6 +126,18 @@ export async function createAppointment(formData) {
 
 export async function deleteEvent(id) {
   const supabase = createClient();
-  await supabase.from('appointments').delete().eq('id', id).in('type', ['block', 'other']);
+  await supabase.from('appointments').delete().eq('id', id).eq('type', 'block');
+  revalidatePath('/agenda');
+}
+
+export async function deleteEventConfirmed(id) {
+  const supabase = createClient();
+  await supabase.from('appointments').delete().eq('id', id).eq('type', 'other');
+  revalidatePath('/agenda');
+}
+
+export async function updateEventPayment(id, payment) {
+  const supabase = createClient();
+  await supabase.from('appointments').update({ payment }).eq('id', id).eq('type', 'other');
   revalidatePath('/agenda');
 }

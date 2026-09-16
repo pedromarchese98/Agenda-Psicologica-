@@ -19,6 +19,16 @@ function addDays(dateStr, delta) {
 function isWeekend(d) {
   return d.getDay() === 0 || d.getDay() === 6;
 }
+function addWeeks(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n * 7);
+  return toDateStr(d);
+}
+function addMonths(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return toDateStr(d);
+}
 const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 const MONTH_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
@@ -32,8 +42,14 @@ export default async function AgendaPage({ searchParams }) {
   const d = new Date(dateStr + 'T00:00:00');
   const todayKey = toDateStr(new Date());
 
-  const prevHref = `/agenda?view=${view}&date=${addDays(dateStr, -1)}`;
-  const nextHref = `/agenda?view=${view}&date=${addDays(dateStr, 1)}`;
+  const prevHref =
+    view === 'week' ? `/agenda?view=week&date=${addWeeks(dateStr, -1)}` :
+    view === 'month' ? `/agenda?view=month&date=${addMonths(dateStr, -1)}` :
+    `/agenda?view=day&date=${addDays(dateStr, -1)}`;
+  const nextHref =
+    view === 'week' ? `/agenda?view=week&date=${addWeeks(dateStr, 1)}` :
+    view === 'month' ? `/agenda?view=month&date=${addMonths(dateStr, 1)}` :
+    `/agenda?view=day&date=${addDays(dateStr, 1)}`;
   const todayHref = `/agenda?view=${view}&date=${todayKey}`;
 
   let body = null;
@@ -111,7 +127,7 @@ export default async function AgendaPage({ searchParams }) {
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
 
   return (
-    <SwipeDayNav prevHref={view === 'day' ? prevHref : '#'} nextHref={view === 'day' ? nextHref : '#'} dateKey={`${view}-${dateStr}`}>
+    <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={`${view}-${dateStr}`}>
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <div style={{ display: 'flex', background: 'var(--surface)', borderRadius: 8, padding: 3, gap: 2 }}>
@@ -134,15 +150,11 @@ export default async function AgendaPage({ searchParams }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          {view === 'day' ? (
-            <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
-          ) : <span style={{ width: 38 }} />}
+          <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
           <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
             {navLabel}
           </div>
-          {view === 'day' ? (
-            <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
-          ) : <span style={{ width: 38 }} />}
+          <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
         </div>
 
         {dateStr !== todayKey && (

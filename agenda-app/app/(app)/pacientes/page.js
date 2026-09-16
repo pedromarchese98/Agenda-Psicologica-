@@ -11,6 +11,10 @@ const STATUS_LABEL = {
   abandoned: 'Abandonó', discharged: 'Alta', referred: 'Derivado',
 };
 
+function initials(p) {
+  return (p.first_name?.[0] || '?') + (p.last_name?.[0] || '');
+}
+
 export default async function PacientesPage({ searchParams }) {
   const supabase = createClient();
   const selectedId = searchParams?.id;
@@ -22,19 +26,43 @@ export default async function PacientesPage({ searchParams }) {
   if (q.trim()) query = query.ilike('first_name', `%${q.trim()}%`);
   const { data: patients } = await query;
 
+  // Última sesión de cada paciente en la lista (para mostrar debajo del nombre)
+  let lastVisitByPatient = {};
+  if (patients && patients.length > 0) {
+    const { data: lastAppts } = await supabase
+      .from('appointments')
+      .select('patient_id, date')
+      .eq('type', 'patient')
+      .in('patient_id', patients.map((p) => p.id))
+      .order('date', { ascending: false });
+    (lastAppts || []).forEach((a) => {
+      if (!lastVisitByPatient[a.patient_id]) lastVisitByPatient[a.patient_id] = a.date;
+    });
+  }
+
   let detail = null;
   if (selectedId) {
-    const [{ data: patient }, { data: notes }, { data: upcoming }] = await Promise.all([
+    const [{ data: patient }, { data: notes }, { data: allAppts }] = await Promise.all([
       supabase.from('patients').select('*').eq('id', selectedId).single(),
       supabase.from('notes').select('*').eq('patient_id', selectedId).order('created_at', { ascending: false }),
-      supabase
-        .from('appointments')
-        .select('*')
-        .eq('patient_id', selectedId)
-        .gte('date', new Date().toISOString().slice(0, 10))
-        .order('date', { ascending: true }),
+      supabase.from('appointments').select('*').eq('patient_id', selectedId).order('date', { ascending: true }),
     ]);
-    detail = { patient, notes: notes || [], upcoming: upcoming || [] };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const upcoming = (allAppts || []).filter((a) => a.date >= today);
+    const past = (allAppts || []).filter((a) => a.date < today);
+
+    const total = (allAppts || []).length;
+    const attended = (allAppts || []).filter((a) => a.attendance === 'yes').length;
+    const cancelled = (allAppts || []).filter((a) => a.attendance === 'no' || a.attendance === 'no-free').length;
+    const paid = (allAppts || []).reduce((s, a) => s + (a.payment === 'paid' ? Number(a.price) || 0 : 0), 0);
+    const debt = (allAppts || []).reduce((s, a) => s + (a.payment === 'unpaid' ? (Number(a.price) || 0) - (Number(a.amount_paid) || 0) : 0), 0);
+    const attendanceRate = total ? Math.round((attended / total) * 100) : 0;
+
+    detail = {
+      patient, notes: notes || [], upcoming,
+      stats: { total, attended, cancelled, paid, debt, attendanceRate },
+    };
   }
 
   const backHref = `/pacientes?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`;
@@ -66,16 +94,33 @@ export default async function PacientesPage({ searchParams }) {
           ))}
         </div>
 
-        <div style={{ padding: '0 14px' }}>
+        <div style={{ padding: '0 12px' }}>
           {(patients || []).map((p) => (
             <Link
               key={p.id}
               href={`/pacientes?id=${p.id}&status=${status}${q ? `&q=${encodeURIComponent(q)}` : ''}`}
-              style={{ display: 'block', padding: '12px 8px', borderBottom: '1px solid var(--border)' }}
               className="pressable"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 6px',
+                borderBottom: '1px solid var(--border)',
+              }}
             >
-              <div style={{ fontWeight: 700, fontSize: 14 }}>
-                {STATUS_DOT[p.status] || '🟢'} {p.first_name} {p.last_name || ''}
+              <div
+                style={{
+                  width: 36, height: 36, borderRadius: '50%', background: '#E6F8F3', color: 'var(--teal-dk)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0,
+                }}
+              >
+                {initials(p)}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {p.first_name} {p.last_name || ''}
+                  <span style={{ fontSize: 11 }}>{STATUS_DOT[p.status] || ''}</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-lt)' }}>
+                  {lastVisitByPatient[p.id] ? `Última sesión: ${lastVisitByPatient[p.id]}` : 'Sin turnos registrados'}
+                </div>
               </div>
             </Link>
           ))}
@@ -94,7 +139,7 @@ export default async function PacientesPage({ searchParams }) {
               ‹ Todos los pacientes
             </Link>
           </div>
-          <PatientDetail patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} />
+          <PatientDetail patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats} />
         </div>
       )}
     </div>

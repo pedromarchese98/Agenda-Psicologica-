@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import AppointmentRow from './AppointmentRow';
+import EventRow from './EventRow';
 import { createAppointment, deleteEvent } from './actions';
 
 const HOUR_START = 7;
@@ -22,6 +23,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
   const [modalTime, setModalTime] = useState(null); // null = cerrado
   const [closing, setClosing] = useState(false);
   const [formType, setFormType] = useState('patient');
+  const [eventIsPaid, setEventIsPaid] = useState(false);
   const [, startTransition] = useTransition();
   const [hiddenIds, setHiddenIds] = useState([]);
   const [mounted, setMounted] = useState(false);
@@ -55,7 +57,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
     }, 220);
   }
 
-  function removeEvent(id) {
+  function removeBlock(id) {
     if (navigator.vibrate) navigator.vibrate(6);
     setHiddenIds((prev) => [...prev, id]);
     startTransition(() => {
@@ -64,7 +66,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
   }
 
   const visibleBlocks = blocks.filter((b) => !hiddenIds.includes(b.id));
-  const visibleOthers = others.filter((o) => !hiddenIds.includes(o.id));
+  const visibleOthers = others;
 
   const modal = modalTime !== null && (
     <div
@@ -118,8 +120,18 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
         )}
 
         {formType === 'other' && (
-          <input name="title" placeholder="Ej: Reunión con padres, colegio…" required
-            style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
+          <>
+            <input name="title" placeholder="Ej: Reunión con padres, colegio…" required
+              style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+              <input type="checkbox" name="isPaid" checked={eventIsPaid} onChange={(e) => setEventIsPaid(e.target.checked)} />
+              Es un evento pago
+            </label>
+            {eventIsPaid && (
+              <input name="price" type="number" placeholder="Precio" required
+                style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
+            )}
+          </>
         )}
 
         <div style={{ display: 'flex', gap: 10 }}>
@@ -194,7 +206,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
           return (
             <div
               key={b.id}
-              onClick={(e) => { e.stopPropagation(); removeEvent(b.id); }}
+              onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }}
               className="pressable"
               style={{
                 position: 'absolute', top, left: 52, right: 2, height: 40, zIndex: 4,
@@ -212,18 +224,8 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
           const startMin = Math.max(0, timeToMinutes(o.time?.slice(0, 5)));
           const top = (startMin / 60) * HOUR_PX + 2;
           return (
-            <div
-              key={o.id}
-              onClick={(e) => { e.stopPropagation(); removeEvent(o.id); }}
-              className="pressable"
-              style={{
-                position: 'absolute', top, left: 52, right: 2, minHeight: 40, zIndex: 4,
-                background: '#F1ECFB', border: '1px solid #D9CBF5', borderRadius: 8,
-                display: 'flex', alignItems: 'center', padding: '8px 10px',
-                fontSize: 12, fontWeight: 700, color: '#6A3FA0',
-              }}
-            >
-              📌 {o.time?.slice(0, 5)} · {o.title}
+            <div key={o.id} onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top, left: 52, right: 2, minHeight: 40, zIndex: 5 }}>
+              <EventRow event={o} />
             </div>
           );
         })}
