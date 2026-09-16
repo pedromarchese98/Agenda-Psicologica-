@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updatePatientStatus, addNote, deleteFutureAppointments } from './actions';
+import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule } from './actions';
 
 const STATUS = {
   active: { label: 'Activo en tratamiento', color: 'var(--teal-dk)', bg: '#E6F8F3' },
@@ -19,6 +19,12 @@ export default function PatientDetail({ patient, notes, upcoming, history }) {
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
+  const [freqOpen, setFreqOpen] = useState(false);
+  const [freqDate, setFreqDate] = useState(upcoming[0]?.date || todayStr());
+  const [freqTime, setFreqTime] = useState(upcoming[0]?.time?.slice(0, 5) || '10:00');
+  const [freqValue, setFreqValue] = useState('weekly');
+  const [freqModality, setFreqModality] = useState(upcoming[0]?.modality || 'virtual');
+  const [freqPrice, setFreqPrice] = useState(upcoming[0]?.price || 0);
 
   const fullName = `${patient.first_name}${patient.last_name ? ' ' + patient.last_name : ''}`;
   const st = STATUS[patient.status] || STATUS.active;
@@ -84,7 +90,7 @@ export default function PatientDetail({ patient, notes, upcoming, history }) {
         {upcoming.length > 0 && !closing && (
           <button
             onClick={() => setClosing(true)}
-            className="btn btn-secondary"
+            className="btn btn-secondary pressable"
             style={{ marginTop: 12, width: '100%', fontSize: 13, color: 'var(--rose)' }}
           >
             🗓 Cerrar tratamiento (borrar turnos futuros)
@@ -127,6 +133,75 @@ export default function PatientDetail({ patient, notes, upcoming, history }) {
                 }
               >
                 Confirmar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Frecuencia del tratamiento
+        </div>
+        {!freqOpen ? (
+          <button onClick={() => setFreqOpen(true)} className="btn btn-secondary pressable" style={{ width: '100%', fontSize: 13 }}>
+            🔁 Cambiar a semanal / quincenal desde una fecha
+          </button>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-md)', margin: 0 }}>
+              Se borran los turnos futuros de este paciente desde la fecha elegida y se generan de nuevo con la nueva frecuencia. El historial pasado no se toca.
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Desde</label>
+                <input type="date" value={freqDate} onChange={(e) => setFreqDate(e.target.value)}
+                  style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Hora</label>
+                <input type="time" value={freqTime} onChange={(e) => setFreqTime(e.target.value)}
+                  style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Modalidad</label>
+                <select value={freqModality} onChange={(e) => setFreqModality(e.target.value)}
+                  style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
+                  <option value="virtual">💻 Virtual</option>
+                  <option value="presencial">🏠 Presencial</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Precio</label>
+                <input type="number" value={freqPrice} onChange={(e) => setFreqPrice(e.target.value)}
+                  style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Nueva frecuencia</label>
+              <select value={freqValue} onChange={(e) => setFreqValue(e.target.value)}
+                style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
+                <option value="weekly">Semanal</option>
+                <option value="biweekly">Quincenal</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-secondary pressable" style={{ flex: 1 }} onClick={() => setFreqOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary pressable"
+                style={{ flex: 1 }}
+                onClick={() =>
+                  startTransition(async () => {
+                    await changeFutureSchedule(patient.id, freqDate, freqTime, freqValue, freqModality, parseFloat(freqPrice) || 0);
+                    setFreqOpen(false);
+                  })
+                }
+              >
+                Aplicar
               </button>
             </div>
           </div>

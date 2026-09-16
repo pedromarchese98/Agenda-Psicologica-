@@ -23,6 +23,12 @@ export async function updatePayment(appointmentId, payment, paymentMethod) {
   revalidatePath('/agenda');
 }
 
+export async function rescheduleAppointment(appointmentId, newDate, newTime) {
+  const supabase = createClient();
+  await supabase.from('appointments').update({ date: newDate, time: newTime }).eq('id', appointmentId);
+  revalidatePath('/agenda');
+}
+
 export async function createAppointment(formData) {
   const supabase = createClient();
   const {
@@ -37,12 +43,17 @@ export async function createAppointment(formData) {
 
   if (type === 'block') {
     await supabase.from('appointments').insert({
-      owner_id: user.id,
-      type: 'block',
-      date,
-      time,
-      attendance: 'pending',
-      payment: 'na',
+      owner_id: user.id, type: 'block', date, time, attendance: 'pending', payment: 'na',
+    });
+    revalidatePath('/agenda');
+    return;
+  }
+
+  if (type === 'other') {
+    const title = formData.get('title')?.toString().trim();
+    if (!title) return;
+    await supabase.from('appointments').insert({
+      owner_id: user.id, type: 'other', title, date, time, attendance: 'pending', payment: 'na',
     });
     revalidatePath('/agenda');
     return;
@@ -78,18 +89,12 @@ export async function createAppointment(formData) {
   let seriesId = null;
   if (repeat !== 'once') {
     const d = new Date(date + 'T00:00:00');
-    const weekday = (d.getDay() + 6) % 7; // 0 = lunes ... 6 = domingo
+    const weekday = (d.getDay() + 6) % 7;
     const { data: series } = await supabase
       .from('appointment_series')
       .insert({
-        owner_id: user.id,
-        patient_id: patientId,
-        weekday,
-        time,
-        frequency: repeat,
-        modality,
-        price,
-        start_date: date,
+        owner_id: user.id, patient_id: patientId, weekday, time,
+        frequency: repeat, modality, price, start_date: date,
       })
       .select('id')
       .single();
@@ -107,14 +112,8 @@ export async function createAppointment(formData) {
     const m = String(cur.getMonth() + 1).padStart(2, '0');
     const d2 = String(cur.getDate()).padStart(2, '0');
     rows.push({
-      owner_id: user.id,
-      patient_id: patientId,
-      series_id: seriesId,
-      type: 'patient',
-      date: `${y}-${m}-${d2}`,
-      time,
-      modality,
-      price,
+      owner_id: user.id, patient_id: patientId, series_id: seriesId, type: 'patient',
+      date: `${y}-${m}-${d2}`, time, modality, price,
     });
   }
   await supabase.from('appointments').insert(rows);
@@ -122,8 +121,8 @@ export async function createAppointment(formData) {
   revalidatePath('/agenda');
 }
 
-export async function deleteBlock(id) {
+export async function deleteEvent(id) {
   const supabase = createClient();
-  await supabase.from('appointments').delete().eq('id', id).eq('type', 'block');
+  await supabase.from('appointments').delete().eq('id', id).in('type', ['block', 'other']);
   revalidatePath('/agenda');
 }

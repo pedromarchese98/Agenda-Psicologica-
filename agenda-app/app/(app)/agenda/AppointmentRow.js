@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { updateAttendance, updatePayment } from './actions';
+import { updateAttendance, updatePayment, rescheduleAppointment } from './actions';
 
 const ATTENDANCE_LABEL = {
   pending: '⏳ Pendiente',
@@ -31,8 +31,10 @@ export default function AppointmentRow({ appt, compact }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const [local, setLocal] = useState(appt);
+  const [reschedOpen, setReschedOpen] = useState(false);
+  const [newDate, setNewDate] = useState(appt.date);
+  const [newTime, setNewTime] = useState(appt.time?.slice(0, 5));
 
-  // Si el servidor trae datos más nuevos (revalidatePath), sincronizamos.
   useEffect(() => setLocal(appt), [appt]);
 
   const patientName = local.patients
@@ -42,21 +44,22 @@ export default function AppointmentRow({ appt, compact }) {
   function setAttendance(key) {
     if (navigator.vibrate) navigator.vibrate(6);
     setLocal((prev) => ({
-      ...prev,
-      attendance: key,
+      ...prev, attendance: key,
       ...(key === 'no-free' ? { payment: 'na', payment_method: 'none' } : {}),
     }));
-    startTransition(() => {
-      updateAttendance(local.id, key);
-    });
+    startTransition(() => { updateAttendance(local.id, key); });
   }
 
   function setPayment(key) {
     if (navigator.vibrate) navigator.vibrate(6);
     setLocal((prev) => ({ ...prev, payment: key, payment_method: key === 'paid' ? 'transfer' : 'none' }));
-    startTransition(() => {
-      updatePayment(local.id, key, key === 'paid' ? 'transfer' : 'none');
-    });
+    startTransition(() => { updatePayment(local.id, key, key === 'paid' ? 'transfer' : 'none'); });
+  }
+
+  function saveReschedule() {
+    setLocal((prev) => ({ ...prev, date: newDate, time: newTime }));
+    startTransition(() => { rescheduleAppointment(local.id, newDate, newTime); });
+    setReschedOpen(false);
   }
 
   return (
@@ -65,9 +68,7 @@ export default function AppointmentRow({ appt, compact }) {
       style={{
         borderLeft: `5px solid ${borderColorFor(local)}`,
         padding: compact ? '8px 10px' : '12px 14px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
+        display: 'flex', flexDirection: 'column', gap: 6,
       }}
     >
       <div
@@ -80,8 +81,7 @@ export default function AppointmentRow({ appt, compact }) {
           </div>
           {!compact && (
             <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
-              {local.modality === 'virtual' ? '💻 Virtual' : '🏠 Presencial'} · {fmt$(local.price)} ·{' '}
-              {ATTENDANCE_LABEL[local.attendance]}
+              {local.modality === 'virtual' ? '💻 Virtual' : '🏠 Presencial'} · {fmt$(local.price)} · {ATTENDANCE_LABEL[local.attendance]}
             </div>
           )}
         </div>
@@ -89,40 +89,48 @@ export default function AppointmentRow({ appt, compact }) {
       </div>
 
       {open && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
-          {Object.entries(ATTENDANCE_LABEL).map(([key, label]) => (
-            <button
-              key={key}
-              onClick={() => setAttendance(key)}
-              className="btn pressable"
-              style={{
-                fontSize: 12,
-                padding: '7px 10px',
-                background: local.attendance === key ? 'var(--navy)' : 'var(--surface)',
-                color: local.attendance === key ? '#fff' : 'var(--text)',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          {local.attendance !== 'no-free' && (
-            <>
-              {Object.entries(PAYMENT_LABEL).map(([key, label]) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {Object.entries(ATTENDANCE_LABEL).map(([key, label]) => (
+              <button
+                key={key} onClick={() => setAttendance(key)} className="btn pressable"
+                style={{ fontSize: 12, padding: '7px 10px', background: local.attendance === key ? 'var(--navy)' : 'var(--surface)', color: local.attendance === key ? '#fff' : 'var(--text)' }}
+              >
+                {label}
+              </button>
+            ))}
+            {local.attendance !== 'no-free' &&
+              Object.entries(PAYMENT_LABEL).map(([key, label]) => (
                 <button
-                  key={key}
-                  onClick={() => setPayment(key)}
-                  className="btn pressable"
-                  style={{
-                    fontSize: 12,
-                    padding: '7px 10px',
-                    background: local.payment === key ? 'var(--teal)' : 'var(--surface)',
-                    color: local.payment === key ? 'var(--navy)' : 'var(--text)',
-                  }}
+                  key={key} onClick={() => setPayment(key)} className="btn pressable"
+                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment === key ? 'var(--teal)' : 'var(--surface)', color: local.payment === key ? 'var(--navy)' : 'var(--text)' }}
                 >
                   {label}
                 </button>
               ))}
-            </>
+          </div>
+
+          {!reschedOpen ? (
+            <button
+              onClick={() => setReschedOpen(true)}
+              className="btn btn-secondary pressable"
+              style={{ fontSize: 12, alignSelf: 'flex-start' }}
+            >
+              📆 Reprogramar solo este turno
+            </button>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'var(--surface)', padding: 8, borderRadius: 8 }}>
+              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
+                style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }} />
+              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)}
+                style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }} />
+              <button onClick={saveReschedule} className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }}>
+                Guardar
+              </button>
+              <button onClick={() => setReschedOpen(false)} className="btn btn-secondary pressable" style={{ fontSize: 12, padding: '7px 10px' }}>
+                Cancelar
+              </button>
+            </div>
           )}
         </div>
       )}

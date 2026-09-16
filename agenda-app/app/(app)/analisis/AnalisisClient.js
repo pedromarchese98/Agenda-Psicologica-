@@ -52,6 +52,7 @@ export default function AnalisisClient({ appointments, activeCount }) {
     const byPatient = {};
     const byMonth = {};
     const byWeekday = [0, 0, 0, 0, 0, 0, 0];
+    const totalByWeekday = [0, 0, 0, 0, 0, 0, 0];
 
     filtered.forEach((a) => {
       total++;
@@ -64,6 +65,7 @@ export default function AnalisisClient({ appointments, activeCount }) {
       if (!byMonth[mkey]) byMonth[mkey] = { sessions: 0, revenue: 0 };
 
       const weekday = (new Date(a.date + 'T00:00:00').getDay() + 6) % 7; // 0=lunes
+      totalByWeekday[weekday]++;
 
       if (a.attendance === 'yes') {
         att++; byPatient[name].att++;
@@ -97,7 +99,10 @@ export default function AnalisisClient({ appointments, activeCount }) {
       recaudado: byMonth[k].revenue,
     }));
 
-    const weekdayData = WEEKDAY_LABELS.map((label, i) => ({ label, cancelaciones: byWeekday[i] }));
+    const weekdayData = WEEKDAY_LABELS.map((label, i) => ({
+      label,
+      tasa: totalByWeekday[i] ? Math.round((byWeekday[i] / totalByWeekday[i]) * 100) : 0,
+    }));
 
     // Tasa de abandono/alta: tiempo entre primer y último turno para pacientes dados de alta o abandonados
     const durations = [];
@@ -227,8 +232,11 @@ export default function AnalisisClient({ appointments, activeCount }) {
 
       <div className="card" style={{ padding: 16, marginBottom: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
-          Cancelaciones por día de la semana
+          Tasa de cancelación por día de la semana
         </div>
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '0 0 10px' }}>
+          % de los turnos agendados ese día que terminaron cancelados (más representativo que el conteo bruto).
+        </p>
         {stats.totalCanc === 0 ? (
           <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>Sin cancelaciones en el período.</p>
         ) : (
@@ -237,9 +245,9 @@ export default function AnalisisClient({ appointments, activeCount }) {
               <BarChart data={stats.weekdayData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#E4E7F0" />
                 <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="cancelaciones" fill="#E85D6B" radius={[4, 4, 0, 0]} />
+                <YAxis tick={{ fontSize: 10 }} unit="%" />
+                <Tooltip formatter={(v) => `${v}%`} />
+                <Bar dataKey="tasa" fill="#E85D6B" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

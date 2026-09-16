@@ -34,21 +34,20 @@ export default async function AgendaPage({ searchParams }) {
 
   const prevHref = `/agenda?view=${view}&date=${addDays(dateStr, -1)}`;
   const nextHref = `/agenda?view=${view}&date=${addDays(dateStr, 1)}`;
+  const todayHref = `/agenda?view=${view}&date=${todayKey}`;
 
   let body = null;
   let navLabel = '';
 
   if (view === 'day') {
-    const { data: appointments } = await supabase
-      .from('appointments')
-      .select('*, patients(first_name, last_name)')
-      .eq('date', dateStr).eq('type', 'patient').order('time', { ascending: true });
-    const { data: blocks } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('date', dateStr).eq('type', 'block').order('time', { ascending: true });
+    const [{ data: appointments }, { data: blocks }, { data: others }, { data: patients }] = await Promise.all([
+      supabase.from('appointments').select('*, patients(first_name, last_name)').eq('date', dateStr).eq('type', 'patient').order('time', { ascending: true }),
+      supabase.from('appointments').select('*').eq('date', dateStr).eq('type', 'block').order('time', { ascending: true }),
+      supabase.from('appointments').select('*').eq('date', dateStr).eq('type', 'other').order('time', { ascending: true }),
+      supabase.from('patients').select('id, first_name, last_name').order('first_name', { ascending: true }),
+    ]);
     navLabel = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]}`;
-    body = <DayView dateStr={dateStr} appointments={appointments || []} blocks={blocks || []} />;
+    body = <DayView dateStr={dateStr} appointments={appointments || []} blocks={blocks || []} others={others || []} patients={patients || []} />;
   }
 
   if (view === 'week') {
@@ -96,7 +95,7 @@ export default async function AgendaPage({ searchParams }) {
 
     const weeks = [];
     let week = [];
-    let fwd = firstOfMonth.getDay() || 7; // 1=lunes..7=domingo
+    let fwd = firstOfMonth.getDay() || 7;
     for (let i = 1; i < fwd; i++) week.push(null);
     for (let day = 1; day <= lastOfMonth.getDate(); day++) {
       const cur = new Date(y, m, day);
@@ -148,7 +147,7 @@ export default async function AgendaPage({ searchParams }) {
 
         {dateStr !== todayKey && (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <Link href={viewLink(view)} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
+            <Link href={todayHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               Volver a hoy
             </Link>
           </div>
