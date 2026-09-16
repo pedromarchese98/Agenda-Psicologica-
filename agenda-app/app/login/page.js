@@ -130,7 +130,7 @@ export default function LoginPage() {
             onClick={() => { setMode('signup'); setError(''); }}
             style={{ background: 'none', border: 'none', color: 'var(--teal-dk)', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}
           >
-            ¿Sos otro/a profesional? Creá tu cuenta
+            ¿No estás registrado? Creá tu cuenta
           </button>
         </form>
       ) : mode === 'signup' ? (
