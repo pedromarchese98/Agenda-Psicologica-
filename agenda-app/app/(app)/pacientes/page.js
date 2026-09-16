@@ -5,6 +5,10 @@ import PatientDetail from './PatientDetail';
 const STATUS_DOT = {
   active: '🟢', paused: '🟡', suspended: '🟠', abandoned: '🔴', discharged: '🟣', referred: '🔵',
 };
+const STATUS_LABEL = {
+  active: 'Activo', paused: 'Pausado', suspended: 'Suspendido',
+  abandoned: 'Abandonó', discharged: 'Alta', referred: 'Derivado',
+};
 
 export default async function PacientesPage({ searchParams }) {
   const supabase = createClient();
@@ -43,6 +47,18 @@ export default async function PacientesPage({ searchParams }) {
         className="patients-list-col"
       >
         <div style={{ padding: 14 }}>
+          <div
+            style={{
+              display: 'flex', flexWrap: 'wrap', gap: '6px 12px', padding: '10px 8px 14px',
+              borderBottom: '1px solid var(--border)', marginBottom: 6,
+            }}
+          >
+            {Object.entries(STATUS_LABEL).map(([key, label]) => (
+              <span key={key} style={{ fontSize: 11, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                {STATUS_DOT[key]} {label}
+              </span>
+            ))}
+          </div>
           {(patients || []).map((p) => (
             <Link
               key={p.id}

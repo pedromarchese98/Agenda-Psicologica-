@@ -8,6 +8,7 @@ const TABS = [
   { href: '/agenda', label: 'Agenda', icon: '📅' },
   { href: '/pacientes', label: 'Pacientes', icon: '👥' },
   { href: '/analisis', label: 'Análisis', icon: '📊' },
+  { href: '/perfil', label: 'Perfil', icon: '👤' },
 ];
 
 export default function AppLayout({ children }) {

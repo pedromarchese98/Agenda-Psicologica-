@@ -1,7 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
-import AppointmentRow from './AppointmentRow';
-import NewAppointmentForm from './NewAppointmentForm';
+import DayView from './DayView';
 import SwipeDayNav from './SwipeDayNav';
 
 function pad(n) {
@@ -25,25 +24,23 @@ export default async function AgendaPage({ searchParams }) {
   const dateStr = searchParams?.date || toDateStr(new Date());
   const supabase = createClient();
 
+  // Solo turnos de pacientes: los bloqueos no se muestran (no aportan nada al día a día).
   const { data: appointments } = await supabase
     .from('appointments')
     .select('*, patients(first_name, last_name)')
     .eq('date', dateStr)
+    .eq('type', 'patient')
     .order('time', { ascending: true });
-
-  const patientAppts = (appointments || []).filter((a) => a.type === 'patient');
-  const blocks = (appointments || []).filter((a) => a.type === 'block');
 
   const d = new Date(dateStr + 'T00:00:00');
   const label = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]}`;
-
   const prevHref = `/agenda?date=${addDays(dateStr, -1)}`;
   const nextHref = `/agenda?date=${addDays(dateStr, 1)}`;
 
   return (
     <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={dateStr}>
-      <div style={{ padding: '16px 16px 8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+      <div style={{ padding: '16px 16px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
           <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>
             ‹
           </Link>
@@ -56,53 +53,15 @@ export default async function AgendaPage({ searchParams }) {
         </div>
 
         {dateStr !== toDateStr(new Date()) && (
-          <div style={{ textAlign: 'center', marginBottom: 14 }}>
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <Link href="/agenda" style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               Volver a hoy
             </Link>
           </div>
         )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {patientAppts.length === 0 && (
-            <div style={{ textAlign: 'center', color: 'var(--text-lt)', fontSize: 14, padding: '30px 0' }}>
-              No hay turnos agendados este día.
-              <div style={{ fontSize: 12, marginTop: 6, color: 'var(--text-lt)' }}>
-                Deslizá hacia los lados para cambiar de día ↔
-              </div>
-            </div>
-          )}
-          {patientAppts.map((appt) => (
-            <AppointmentRow key={appt.id} appt={appt} />
-          ))}
-          {blocks.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 6 }}>
-                Horarios bloqueados
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {blocks.map((b) => (
-                  <span
-                    key={b.id}
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: 'var(--text-md)',
-                      background: '#ECEFF6',
-                      borderRadius: 8,
-                      padding: '5px 9px',
-                    }}
-                  >
-                    🚫 {b.time?.slice(0, 5)}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      <NewAppointmentForm defaultDate={dateStr} />
+      <DayView dateStr={dateStr} appointments={appointments || []} />
     </SwipeDayNav>
   );
 }

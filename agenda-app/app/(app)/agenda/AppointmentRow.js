@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { updateAttendance, updatePayment } from './actions';
 
 const ATTENDANCE_LABEL = {
@@ -27,40 +27,65 @@ function borderColorFor(a) {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function AppointmentRow({ appt }) {
+export default function AppointmentRow({ appt, compact }) {
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const patientName = appt.patients
-    ? `${appt.patients.first_name}${appt.patients.last_name ? ' ' + appt.patients.last_name : ''}`
+  const [, startTransition] = useTransition();
+  const [local, setLocal] = useState(appt);
+
+  // Si el servidor trae datos más nuevos (revalidatePath), sincronizamos.
+  useEffect(() => setLocal(appt), [appt]);
+
+  const patientName = local.patients
+    ? `${local.patients.first_name}${local.patients.last_name ? ' ' + local.patients.last_name : ''}`
     : 'Paciente';
+
+  function setAttendance(key) {
+    if (navigator.vibrate) navigator.vibrate(6);
+    setLocal((prev) => ({
+      ...prev,
+      attendance: key,
+      ...(key === 'no-free' ? { payment: 'na', payment_method: 'none' } : {}),
+    }));
+    startTransition(() => {
+      updateAttendance(local.id, key);
+    });
+  }
+
+  function setPayment(key) {
+    if (navigator.vibrate) navigator.vibrate(6);
+    setLocal((prev) => ({ ...prev, payment: key, payment_method: key === 'paid' ? 'transfer' : 'none' }));
+    startTransition(() => {
+      updatePayment(local.id, key, key === 'paid' ? 'transfer' : 'none');
+    });
+  }
 
   return (
     <div
       className="card pressable"
       style={{
-        borderLeft: `5px solid ${borderColorFor(appt)}`,
-        padding: '12px 14px',
+        borderLeft: `5px solid ${borderColorFor(local)}`,
+        padding: compact ? '8px 10px' : '12px 14px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 8,
-        opacity: isPending ? 0.6 : 1,
-        transition: 'opacity .15s ease, transform .12s ease',
+        gap: 6,
       }}
     >
       <div
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
         onClick={() => setOpen((v) => !v)}
       >
-        <div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>
-            {appt.time?.slice(0, 5)} · {patientName}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {local.time?.slice(0, 5)} · {patientName}
           </div>
-          <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
-            {appt.modality === 'virtual' ? '💻 Virtual' : '🏠 Presencial'} · {fmt$(appt.price)} ·{' '}
-            {ATTENDANCE_LABEL[appt.attendance]}
-          </div>
+          {!compact && (
+            <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
+              {local.modality === 'virtual' ? '💻 Virtual' : '🏠 Presencial'} · {fmt$(local.price)} ·{' '}
+              {ATTENDANCE_LABEL[local.attendance]}
+            </div>
+          )}
         </div>
-        <span style={{ color: 'var(--text-lt)', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ color: 'var(--text-lt)', fontSize: 12, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
       </div>
 
       {open && (
@@ -68,40 +93,30 @@ export default function AppointmentRow({ appt }) {
           {Object.entries(ATTENDANCE_LABEL).map(([key, label]) => (
             <button
               key={key}
-              onClick={() =>
-                startTransition(() => {
-                  if (navigator.vibrate) navigator.vibrate(6);
-                  updateAttendance(appt.id, key);
-                })
-              }
+              onClick={() => setAttendance(key)}
               className="btn pressable"
               style={{
                 fontSize: 12,
                 padding: '7px 10px',
-                background: appt.attendance === key ? 'var(--navy)' : 'var(--surface)',
-                color: appt.attendance === key ? '#fff' : 'var(--text)',
+                background: local.attendance === key ? 'var(--navy)' : 'var(--surface)',
+                color: local.attendance === key ? '#fff' : 'var(--text)',
               }}
             >
               {label}
             </button>
           ))}
-          {appt.attendance !== 'no-free' && (
+          {local.attendance !== 'no-free' && (
             <>
               {Object.entries(PAYMENT_LABEL).map(([key, label]) => (
                 <button
                   key={key}
-                  onClick={() =>
-                    startTransition(() => {
-                      if (navigator.vibrate) navigator.vibrate(6);
-                      updatePayment(appt.id, key, key === 'paid' ? 'transfer' : 'none');
-                    })
-                  }
+                  onClick={() => setPayment(key)}
                   className="btn pressable"
                   style={{
                     fontSize: 12,
                     padding: '7px 10px',
-                    background: appt.payment === key ? 'var(--teal)' : 'var(--surface)',
-                    color: appt.payment === key ? 'var(--navy)' : 'var(--text)',
+                    background: local.payment === key ? 'var(--teal)' : 'var(--surface)',
+                    color: local.payment === key ? 'var(--navy)' : 'var(--text)',
                   }}
                 >
                   {label}

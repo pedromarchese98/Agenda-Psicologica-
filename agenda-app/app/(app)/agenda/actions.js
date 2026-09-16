@@ -34,6 +34,7 @@ export async function createAppointment(formData) {
   const time = formData.get('time')?.toString();
   const modality = formData.get('modality')?.toString();
   const price = parseFloat(formData.get('price')?.toString() || '0');
+  const repeat = formData.get('repeat')?.toString() || 'once';
 
   if (!name || !date || !time) return;
 
@@ -57,15 +58,49 @@ export async function createAppointment(formData) {
     patientId = created?.id;
   }
 
-  await supabase.from('appointments').insert({
-    owner_id: user.id,
-    patient_id: patientId,
-    type: 'patient',
-    date,
-    time,
-    modality,
-    price,
-  });
+  let seriesId = null;
+  if (repeat !== 'once') {
+    const d = new Date(date + 'T00:00:00');
+    const weekday = (d.getDay() + 6) % 7; // 0 = lunes ... 6 = domingo
+    const { data: series } = await supabase
+      .from('appointment_series')
+      .insert({
+        owner_id: user.id,
+        patient_id: patientId,
+        weekday,
+        time,
+        frequency: repeat,
+        modality,
+        price,
+        start_date: date,
+      })
+      .select('id')
+      .single();
+    seriesId = series?.id;
+  }
+
+  const count = repeat === 'weekly' ? 52 : repeat === 'biweekly' ? 26 : 1;
+  const stepDays = repeat === 'biweekly' ? 14 : 7;
+  const base = new Date(date + 'T00:00:00');
+  const rows = [];
+  for (let i = 0; i < count; i++) {
+    const cur = new Date(base);
+    cur.setDate(base.getDate() + i * stepDays);
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d2 = String(cur.getDate()).padStart(2, '0');
+    rows.push({
+      owner_id: user.id,
+      patient_id: patientId,
+      series_id: seriesId,
+      type: 'patient',
+      date: `${y}-${m}-${d2}`,
+      time,
+      modality,
+      price,
+    });
+  }
+  await supabase.from('appointments').insert(rows);
 
   revalidatePath('/agenda');
 }
