@@ -1,21 +1,27 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Clock, Check, X, Unlock, Calendar, Trash2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
+import { Check, X, Unlock, Calendar, Trash2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { updateAttendance, updatePayment, rescheduleAppointment, deleteAppointment } from './actions';
 
 const ATTENDANCE_OPTIONS = [
-  { key: 'pending', label: 'Pendiente', icon: Clock },
   { key: 'yes', label: 'Asistió', icon: Check },
   { key: 'no', label: 'No asistió', icon: X },
-  { key: 'no-free', label: 'Canceló (libera horario)', icon: Unlock },
+  { key: 'no-free', label: 'Canceló', icon: Unlock },
 ];
-const PAYMENT_LABEL = {
-  pending: 'Pago pendiente',
-  paid: 'Pagó',
-  unpaid: 'Debe',
-  na: 'No corresponde',
-};
+const PAYMENT_OPTIONS_BILLABLE = [
+  { key: 'paid', label: 'Pagó' },
+  { key: 'unpaid', label: 'No pagó' },
+];
+const PAYMENT_OPTIONS_CANCELLED = [
+  { key: 'paid', label: 'Pagó' },
+  { key: 'na', label: 'No corresponde' },
+];
+const METHOD_OPTIONS = [
+  { key: 'transfer', label: 'Transferencia' },
+  { key: 'cash', label: 'Efectivo' },
+];
+const PAYMENT_DISPLAY = { pending: 'Pago pendiente', paid: 'Pagó', unpaid: 'No pagó', na: 'No corresponde' };
 
 function borderColorFor(a, hasConflict) {
   if (hasConflict) return '#C62828';
@@ -45,17 +51,20 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
 
   function setAttendance(key) {
     if (navigator.vibrate) navigator.vibrate(6);
-    setLocal((prev) => ({
-      ...prev, attendance: key,
-      ...(key === 'no-free' ? { payment: 'na', payment_method: 'none' } : {}),
-    }));
+    setLocal((prev) => ({ ...prev, attendance: key, payment: 'pending', payment_method: 'none' }));
     startTransition(() => { updateAttendance(local.id, key); });
   }
 
   function setPayment(key) {
     if (navigator.vibrate) navigator.vibrate(6);
-    setLocal((prev) => ({ ...prev, payment: key, payment_method: key === 'paid' ? 'transfer' : 'none' }));
-    startTransition(() => { updatePayment(local.id, key, key === 'paid' ? 'transfer' : 'none'); });
+    setLocal((prev) => ({ ...prev, payment: key, payment_method: key === 'paid' ? prev.payment_method : 'none' }));
+    startTransition(() => { updatePayment(local.id, key, key === 'paid' ? (local.payment_method !== 'none' ? local.payment_method : 'transfer') : 'none'); });
+  }
+
+  function setMethod(key) {
+    if (navigator.vibrate) navigator.vibrate(6);
+    setLocal((prev) => ({ ...prev, payment_method: key }));
+    startTransition(() => { updatePayment(local.id, 'paid', key); });
   }
 
   function saveReschedule() {
@@ -94,7 +103,7 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
           </div>
           {!compact && (
             <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
-              {local.modality === 'virtual' ? 'Virtual' : 'Presencial'} · {fmt$(local.price)} · {PAYMENT_LABEL[local.payment] || ''}
+              {local.modality === 'virtual' ? 'Virtual' : 'Presencial'} · {fmt$(local.price)} · {PAYMENT_DISPLAY[local.payment] || ''}
             </div>
           )}
         </div>
@@ -117,8 +126,11 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
                 <Icon size={13} /> {label}
               </button>
             ))}
-            {local.attendance !== 'no-free' &&
-              Object.entries(PAYMENT_LABEL).map(([key, label]) => (
+          </div>
+
+          {(local.attendance === 'yes' || local.attendance === 'no') && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {PAYMENT_OPTIONS_BILLABLE.map(({ key, label }) => (
                 <button
                   key={key} onClick={() => setPayment(key)} className="btn pressable"
                   style={{ fontSize: 12, padding: '7px 10px', background: local.payment === key ? 'var(--teal)' : 'var(--surface)', color: local.payment === key ? 'var(--navy)' : 'var(--text)' }}
@@ -126,7 +138,34 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
                   {label}
                 </button>
               ))}
-          </div>
+            </div>
+          )}
+
+          {local.attendance === 'no-free' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {PAYMENT_OPTIONS_CANCELLED.map(({ key, label }) => (
+                <button
+                  key={key} onClick={() => setPayment(key)} className="btn pressable"
+                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment === key ? 'var(--teal)' : 'var(--surface)', color: local.payment === key ? 'var(--navy)' : 'var(--text)' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {local.payment === 'paid' && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {METHOD_OPTIONS.map(({ key, label }) => (
+                <button
+                  key={key} onClick={() => setMethod(key)} className="btn pressable"
+                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment_method === key ? 'var(--navy)' : 'var(--surface)', color: local.payment_method === key ? '#fff' : 'var(--text)' }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {!reschedOpen ? (
             <div style={{ display: 'flex', gap: 8 }}>

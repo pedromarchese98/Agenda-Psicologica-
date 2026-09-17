@@ -5,13 +5,14 @@ import { revalidatePath } from 'next/cache';
 
 export async function updateAttendance(appointmentId, attendance) {
   const supabase = createClient();
-  const patch = { attendance };
-  if (attendance === 'no-free') {
-    patch.payment = 'na';
-    patch.payment_method = 'none';
-  }
-  await supabase.from('appointments').update(patch).eq('id', appointmentId);
+  // Al cambiar la asistencia, el pago vuelve a "pendiente" para que se elija de nuevo
+  // según las opciones que correspondan a la nueva categoría (asistió/no asistió/canceló).
+  await supabase
+    .from('appointments')
+    .update({ attendance, payment: 'pending', payment_method: 'none' })
+    .eq('id', appointmentId);
   revalidatePath('/agenda');
+  revalidatePath('/disponibles');
 }
 
 export async function updatePayment(appointmentId, payment, paymentMethod) {

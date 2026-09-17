@@ -34,7 +34,9 @@ export default function HourList({
         const slot = `${dateStr}|${hourStr}:00`;
         const apptsInHour = appointments.filter((a) => a.time?.startsWith(hourStr + ':'));
         const othersInHour = others.filter((o) => o.time?.startsWith(hourStr + ':'));
-        const isFree = apptsInHour.length === 0 && othersInHour.length === 0;
+        // Un turno cancelado (no-free) libera el horario para volver a agendar,
+        // aunque su registro histórico se siga mostrando arriba.
+        const isFree = apptsInHour.filter((a) => a.attendance !== 'no-free').length === 0 && othersInHour.length === 0;
         const isHovered = hoverSlot === slot && isFree;
 
         return (
