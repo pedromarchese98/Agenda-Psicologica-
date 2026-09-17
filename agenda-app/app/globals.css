@@ -126,29 +126,23 @@ input:focus, select:focus, textarea:focus {
 .sheet-box.closing { animation: sheetSlideDown 0.22s cubic-bezier(0.32, 0.72, 0, 1) both; }
 @keyframes sheetSlideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
 
-/* ── Botón flotante (FAB extendido, estilo Google Calendar) ── */
-.fab-extended {
+/* ── Botón flotante (compacto, discreto, pegado a la derecha) ── */
+.fab-compact {
   position: fixed;
   right: 18px;
-  left: 18px;
   bottom: calc(86px + var(--safe-bottom, 0px));
-  height: 52px;
-  border-radius: 26px;
-  background: var(--navy);
-  color: var(--teal);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--teal-dk);
+  border: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  border: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 41, 0.35);
+  box-shadow: var(--shadow-md);
   z-index: 40;
-  max-width: 220px;
-  margin: 0 auto;
 }
-.fab-extended .fab-icon { font-size: 20px; line-height: 1; }
 
 /* ── Indicador del tab activo ── */
 .tab-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--teal-dk); transition: opacity 0.15s ease; }

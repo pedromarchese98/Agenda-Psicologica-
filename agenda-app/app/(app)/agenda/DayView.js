@@ -171,8 +171,8 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
       />
 
       {mounted && createPortal(
-        <button className="fab-extended pressable" onClick={() => openModalAt(dateStr, pad(new Date().getHours()) + ':00')}>
-          <Plus size={20} strokeWidth={2.5} /> Nuevo turno
+        <button className="fab-compact pressable" onClick={() => openModalAt(dateStr, pad(new Date().getHours()) + ':00')} aria-label="Nuevo turno">
+          <Plus size={20} strokeWidth={2.5} />
         </button>,
         document.body
       )}

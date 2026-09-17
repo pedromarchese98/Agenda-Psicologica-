@@ -98,8 +98,8 @@ export default function WeekView({ days, appointmentsByDate, blockedByDate, othe
       })}
 
       {mounted && createPortal(
-        <button className="fab-extended pressable" onClick={() => openModalAt(days[0]?.key, pad(new Date().getHours()) + ':00')}>
-          <Plus size={20} strokeWidth={2.5} /> Nuevo turno
+        <button className="fab-compact pressable" onClick={() => openModalAt(days[0]?.key, pad(new Date().getHours()) + ':00')} aria-label="Nuevo turno">
+          <Plus size={20} strokeWidth={2.5} />
         </button>,
         document.body
       )}
