@@ -3,23 +3,16 @@ import Link from 'next/link';
 import DayView from './DayView';
 import WeekView from './WeekView';
 import MonthView from './MonthView';
-import AvailabilityView from './AvailabilityView';
 import SwipeDayNav from './SwipeDayNav';
 
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-function toDateStr(d) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+function pad(n) { return String(n).padStart(2, '0'); }
+function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 function addDays(dateStr, delta) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + delta);
   return toDateStr(d);
 }
-function isWeekend(d) {
-  return d.getDay() === 0 || d.getDay() === 6;
-}
+function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
 function addWeeks(dateStr, n) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n * 7);
@@ -81,18 +74,23 @@ export default async function AgendaPage({ searchParams }) {
     friday.setDate(monday.getDate() + 4);
     navLabel = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} – ${friday.getDate()} ${MONTH_NAMES[friday.getMonth()].slice(0, 3)}`;
 
-    const { data: appointments } = await supabase
-      .from('appointments')
-      .select('*, patients(first_name, last_name)')
-      .eq('type', 'patient')
-      .gte('date', days[0].key).lte('date', days[4].key);
+    const [{ data: appointments }, { data: blocksData }, { data: patients }] = await Promise.all([
+      supabase.from('appointments').select('*, patients(first_name, last_name)').eq('type', 'patient').gte('date', days[0].key).lte('date', days[4].key),
+      supabase.from('appointments').select('date, time').eq('type', 'block').gte('date', days[0].key).lte('date', days[4].key),
+      supabase.from('patients').select('id, first_name, last_name').order('first_name', { ascending: true }),
+    ]);
 
     const appointmentsByDate = {};
     (appointments || []).forEach((a) => {
       if (!appointmentsByDate[a.date]) appointmentsByDate[a.date] = [];
       appointmentsByDate[a.date].push(a);
     });
-    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} />;
+    const blockedByDate = {};
+    (blocksData || []).forEach((b) => {
+      if (!blockedByDate[b.date]) blockedByDate[b.date] = [];
+      blockedByDate[b.date].push(b);
+    });
+    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} blockedByDate={blockedByDate} patients={patients || []} />;
   }
 
   if (view === 'month') {
@@ -102,9 +100,7 @@ export default async function AgendaPage({ searchParams }) {
     const lastOfMonth = new Date(y, m + 1, 0);
 
     const { data: appointments } = await supabase
-      .from('appointments')
-      .select('date')
-      .eq('type', 'patient')
+      .from('appointments').select('date').eq('type', 'patient')
       .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth));
 
     const countsByDate = {};
@@ -125,54 +121,14 @@ export default async function AgendaPage({ searchParams }) {
     body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} />;
   }
 
-  if (view === 'availability') {
-    navLabel = 'Disponibilidad — próximos 7 días';
-    const start = new Date(todayKey + 'T00:00:00');
-    const end = new Date(start);
-    end.setDate(end.getDate() + 6);
-
-    const { data: weekAppts } = await supabase
-      .from('appointments')
-      .select('date, time, type, id')
-      .gte('date', todayKey).lte('date', toDateStr(end));
-
-    const byDate = {};
-    (weekAppts || []).forEach((a) => {
-      if (!byDate[a.date]) byDate[a.date] = [];
-      byDate[a.date].push(a);
-    });
-
-    const HOUR_START = 7, HOUR_END = 20;
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const cur = new Date(start);
-      cur.setDate(start.getDate() + i);
-      const key = toDateStr(cur);
-      const dayAppts = byDate[key] || [];
-      const slots = [];
-      for (let h = HOUR_START; h <= HOUR_END; h++) {
-        const hStr = pad(h);
-        const inHour = dayAppts.filter((a) => a.time?.startsWith(hStr + ':'));
-        const patientOne = inHour.find((a) => a.type === 'patient' || a.type === 'other');
-        const blockOne = inHour.find((a) => a.type === 'block');
-        if (patientOne) slots.push({ time: `${hStr}:00`, status: 'occupied' });
-        else if (blockOne) slots.push({ time: `${hStr}:00`, status: 'blocked', id: blockOne.id });
-        else slots.push({ time: `${hStr}:00`, status: 'free' });
-      }
-      days.push({ key, day: cur.getDate(), month: cur.getMonth() + 1, weekday: cur.getDay(), slots });
-    }
-
-    body = <AvailabilityView days={days} />;
-  }
-
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
 
   return (
-    <SwipeDayNav prevHref={view === 'availability' ? '#' : prevHref} nextHref={view === 'availability' ? '#' : nextHref} dateKey={`${view}-${dateStr}`}>
+    <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={`${view}-${dateStr}`}>
       <div style={{ padding: '16px 16px 0' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
           <div className="segmented">
-            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes'], ['availability', 'Disponible']].map(([v, label]) => (
+            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([v, label]) => (
               <Link key={v} href={viewLink(v)} className={`pressable segmented-item${view === v ? ' active' : ''}`}>
                 {label}
               </Link>
@@ -181,14 +137,14 @@ export default async function AgendaPage({ searchParams }) {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          {view !== 'availability' && <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>}
+          <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
           <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
             {navLabel}
           </div>
-          {view !== 'availability' && <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>}
+          <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
         </div>
 
-        {dateStr !== todayKey && view !== 'availability' && (
+        {dateStr !== todayKey && (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <Link href={todayHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
               Volver a hoy

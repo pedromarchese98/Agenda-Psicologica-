@@ -16,7 +16,16 @@ export async function updatePatientStatus(patientId, status, reason) {
     status,
     reason: reason || null,
   });
+
+  // Cualquier estado que no sea "activo" libera automáticamente los turnos futuros.
+  // Al reactivar, no se genera nada solo: hay que fijar un horario nuevo desde "Frecuencia del tratamiento".
+  if (status !== 'active') {
+    const today = new Date().toISOString().slice(0, 10);
+    await supabase.from('appointments').delete().eq('patient_id', patientId).gte('date', today);
+  }
+
   revalidatePath('/pacientes');
+  revalidatePath('/agenda');
 }
 
 export async function deletePatient(patientId) {

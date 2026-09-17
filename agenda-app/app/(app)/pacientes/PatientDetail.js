@@ -95,7 +95,14 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
           Próximos turnos ({upcoming.length})
         </div>
         {upcoming.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin turnos futuros agendados.</p>
+          <>
+            <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin turnos futuros agendados.</p>
+            {patient.status === 'active' && (
+              <p style={{ fontSize: 12, color: 'var(--amber)', fontWeight: 600, margin: '8px 0 0' }}>
+                ⚠️ Este paciente está activo pero no tiene ningún horario fijo asignado. Fijá uno abajo en "Frecuencia del tratamiento".
+              </p>
+            )}
+          </>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {upcoming.slice(0, 6).map((a) => (
@@ -141,16 +148,17 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
 
       <div className="card" style={{ padding: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
-          Frecuencia del tratamiento
+          Día, horario y frecuencia
         </div>
         {!freqOpen ? (
           <button onClick={() => setFreqOpen(true)} className="btn btn-secondary pressable" style={{ width: '100%', fontSize: 13 }}>
-            🔁 Cambiar a semanal / quincenal desde una fecha
+            🔁 Cambiar día/horario/frecuencia desde una fecha
           </button>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ fontSize: 12, color: 'var(--text-md)', margin: 0 }}>
-              Se borran los turnos futuros desde la fecha elegida y se generan de nuevo con la nueva frecuencia. El historial pasado no se toca.
+              Ej: "de acá en más, los miércoles a las 10:00, semanal" — elegí el primer miércoles en el campo "Desde".
+              Se borran los turnos futuros de este paciente y se generan de nuevo con estos datos. El historial pasado no se toca.
             </p>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>

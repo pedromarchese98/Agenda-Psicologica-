@@ -16,7 +16,8 @@ const PAYMENT_LABEL = {
   na: '— No corresponde',
 };
 
-function borderColorFor(a) {
+function borderColorFor(a, hasConflict) {
+  if (hasConflict) return '#C62828';
   if (a.attendance === 'no-free') return '#C2454F';
   if (a.attendance === 'no') return '#8A93A8';
   if (a.payment === 'paid') return '#2E9C6A';
@@ -27,7 +28,7 @@ function borderColorFor(a) {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function AppointmentRow({ appt, compact }) {
+export default function AppointmentRow({ appt, compact, hasConflict, conflictWith }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const [local, setLocal] = useState(appt);
@@ -71,9 +72,10 @@ export default function AppointmentRow({ appt, compact }) {
     <div
       className="card pressable"
       style={{
-        borderLeft: `5px solid ${borderColorFor(local)}`,
+        borderLeft: `5px solid ${borderColorFor(local, hasConflict)}`,
         padding: compact ? '8px 10px' : '12px 14px',
         display: 'flex', flexDirection: 'column', gap: 6,
+        background: hasConflict ? '#FFF6F6' : undefined,
       }}
     >
       <div
@@ -83,6 +85,7 @@ export default function AppointmentRow({ appt, compact }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {local.time?.slice(0, 5)} · {patientName}
+            {hasConflict && <span style={{ marginLeft: 6, fontSize: 11, color: '#C62828', fontWeight: 800 }}>⚠️ Superpuesto</span>}
           </div>
           {!compact && (
             <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
@@ -95,6 +98,11 @@ export default function AppointmentRow({ appt, compact }) {
 
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+          {hasConflict && conflictWith && (
+            <p style={{ fontSize: 11, color: '#C62828', margin: 0, fontWeight: 700 }}>
+              ⚠️ Se superpone con el turno de {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro paciente'} a las {conflictWith.time?.slice(0, 5)}.
+            </p>
+          )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {Object.entries(ATTENDANCE_LABEL).map(([key, label]) => (
               <button
