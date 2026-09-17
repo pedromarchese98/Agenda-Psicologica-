@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { Pin, Calendar, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { updateEventPayment, rescheduleAppointment, deleteEventConfirmed } from './actions';
 
-const PAYMENT_LABEL = { pending: 'Pendiente', paid: '✓ Pagó', na: '— No corresponde' };
+const PAYMENT_LABEL = { pending: 'Pendiente', paid: 'Pagó', na: 'No corresponde' };
 
-export default function EventRow({ event }) {
+export default function EventRow({ event, compact }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const [local, setLocal] = useState(event);
@@ -36,15 +37,16 @@ export default function EventRow({ event }) {
       className="card pressable"
       style={{
         border: '1px solid #D9CBF5', background: '#F1ECFB', borderRadius: 10,
-        padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6,
+        padding: compact ? '6px 9px' : '8px 10px', display: 'flex', flexDirection: 'column', gap: 6,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#6A3FA0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          📌 {local.time?.slice(0, 5)} · {local.title}
-          {Number(local.price) > 0 && <span style={{ marginLeft: 6, color: '#8A5FC0' }}>· {PAYMENT_LABEL[local.payment] || ''}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: compact ? 11 : 12, fontWeight: 700, color: '#6A3FA0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <Pin size={compact ? 11 : 12} strokeWidth={2} />
+          {local.time?.slice(0, 5)} · {local.title}
+          {Number(local.price) > 0 && <span style={{ marginLeft: 4, color: '#8A5FC0' }}>· {PAYMENT_LABEL[local.payment] || ''}</span>}
         </div>
-        <span style={{ color: '#8A5FC0', fontSize: 11 }}>{open ? '▲' : '▼'}</span>
+        {open ? <ChevronUp size={13} color="#8A5FC0" /> : <ChevronDown size={13} color="#8A5FC0" />}
       </div>
 
       {open && (
@@ -64,11 +66,11 @@ export default function EventRow({ event }) {
 
           {!reschedOpen ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 11, flex: 1 }}>
-                📆 Reprogramar
+              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 11, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Calendar size={12} /> Reprogramar
               </button>
-              <button onClick={handleDelete} className="btn pressable" style={{ fontSize: 11, background: '#FFEBEE', color: 'var(--rose)', flex: 1 }}>
-                🗑 Eliminar
+              <button onClick={handleDelete} className="btn btn-destructive pressable" style={{ fontSize: 11, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Trash2 size={12} /> Eliminar
               </button>
             </div>
           ) : (

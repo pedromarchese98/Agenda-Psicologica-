@@ -1,19 +1,20 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
+import { Clock, Check, X, Unlock, Calendar, Trash2, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { updateAttendance, updatePayment, rescheduleAppointment, deleteAppointment } from './actions';
 
-const ATTENDANCE_LABEL = {
-  pending: '⏳ Pendiente',
-  yes: '✅ Asistió',
-  no: '❌ No asistió',
-  'no-free': '🔓 Canceló (libera horario)',
-};
+const ATTENDANCE_OPTIONS = [
+  { key: 'pending', label: 'Pendiente', icon: Clock },
+  { key: 'yes', label: 'Asistió', icon: Check },
+  { key: 'no', label: 'No asistió', icon: X },
+  { key: 'no-free', label: 'Canceló (libera horario)', icon: Unlock },
+];
 const PAYMENT_LABEL = {
   pending: 'Pago pendiente',
-  paid: '✓ Pagó',
-  unpaid: '⚠ Debe',
-  na: '— No corresponde',
+  paid: 'Pagó',
+  unpaid: 'Debe',
+  na: 'No corresponde',
 };
 
 function borderColorFor(a, hasConflict) {
@@ -83,33 +84,37 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
         onClick={() => setOpen((v) => !v)}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
             {local.time?.slice(0, 5)} · {patientName}
-            {hasConflict && <span style={{ marginLeft: 6, fontSize: 11, color: '#C62828', fontWeight: 800 }}>⚠️ Superpuesto</span>}
+            {hasConflict && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#C62828', fontWeight: 700 }}>
+                <AlertTriangle size={11} /> Superpuesto
+              </span>
+            )}
           </div>
           {!compact && (
             <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
-              {local.modality === 'virtual' ? '💻 Virtual' : '🏠 Presencial'} · {fmt$(local.price)} · {ATTENDANCE_LABEL[local.attendance]}
+              {local.modality === 'virtual' ? 'Virtual' : 'Presencial'} · {fmt$(local.price)} · {PAYMENT_LABEL[local.payment] || ''}
             </div>
           )}
         </div>
-        <span style={{ color: 'var(--text-lt)', fontSize: 12, flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+        {open ? <ChevronUp size={14} color="var(--text-lt)" /> : <ChevronDown size={14} color="var(--text-lt)" />}
       </div>
 
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
           {hasConflict && conflictWith && (
-            <p style={{ fontSize: 11, color: '#C62828', margin: 0, fontWeight: 700 }}>
-              ⚠️ Se superpone con el turno de {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro paciente'} a las {conflictWith.time?.slice(0, 5)}.
+            <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#C62828', margin: 0, fontWeight: 700 }}>
+              <AlertTriangle size={12} /> Se superpone con el turno de {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro paciente'} a las {conflictWith.time?.slice(0, 5)}.
             </p>
           )}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {Object.entries(ATTENDANCE_LABEL).map(([key, label]) => (
+            {ATTENDANCE_OPTIONS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key} onClick={() => setAttendance(key)} className="btn pressable"
-                style={{ fontSize: 12, padding: '7px 10px', background: local.attendance === key ? 'var(--navy)' : 'var(--surface)', color: local.attendance === key ? '#fff' : 'var(--text)' }}
+                style={{ fontSize: 12, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 5, background: local.attendance === key ? 'var(--navy)' : 'var(--surface)', color: local.attendance === key ? '#fff' : 'var(--text)' }}
               >
-                {label}
+                <Icon size={13} /> {label}
               </button>
             ))}
             {local.attendance !== 'no-free' &&
@@ -125,11 +130,11 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
 
           {!reschedOpen ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 12, flex: 1 }}>
-                📆 Reprogramar
+              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 12, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Calendar size={13} /> Reprogramar
               </button>
-              <button onClick={handleDelete} className="btn pressable" style={{ fontSize: 12, flex: 1, background: '#FFEBEE', color: 'var(--rose)' }}>
-                🗑 Eliminar turno
+              <button onClick={handleDelete} className="btn btn-destructive pressable" style={{ fontSize: 12, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <Trash2 size={13} /> Eliminar turno
               </button>
             </div>
           ) : (

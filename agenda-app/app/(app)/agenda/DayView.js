@@ -2,14 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import AppointmentRow from './AppointmentRow';
-import EventRow from './EventRow';
+import { Plus, User, Pin, Ban, Laptop, Home } from 'lucide-react';
+import HourList from './HourList';
 import { createAppointment, rescheduleAppointment } from './actions';
 import { useDragReschedule } from './useDragReschedule';
-import { findConflicts, timeToMinutes, rangesOverlap } from './scheduling';
-
-const HOUR_START = 7;
-const HOUR_END = 20;
+import { timeToMinutes, rangesOverlap } from './scheduling';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -26,11 +23,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
   useEffect(() => setMounted(true), []);
   useEffect(() => setLocalAppts(appointments), [appointments]);
 
-  const hours = [];
-  for (let h = HOUR_START; h <= HOUR_END; h++) hours.push(h);
-  const visibleHours = hours.filter((h) => !blocks.some((b) => b.time?.startsWith(pad(h) + ':')));
-
-  function openModalAt(time) {
+  function openModalAt(_date, time) {
     setFormType('patient');
     setEventIsPaid(false);
     setModalTime(time);
@@ -42,12 +35,12 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
 
   function handleDrop(meta, slot) {
     const [slotDate, slotTime] = slot.split('|');
-    if (slotDate !== dateStr) return; // en Día solo hay una fecha
+    if (slotDate !== dateStr) return;
     const startMin = timeToMinutes(slotTime);
     const conflict = localAppts.find((a) => a.id !== meta.id && rangesOverlap(startMin, timeToMinutes(a.time)));
     if (conflict) {
       const name = conflict.patients ? `${conflict.patients.first_name} ${conflict.patients.last_name || ''}`.trim() : 'otro turno';
-      if (!confirm(`⚠️ Se superpone con el turno de ${name} a las ${conflict.time?.slice(0, 5)}. ¿Agendar igual?`)) return;
+      if (!confirm(`Se superpone con el turno de ${name} a las ${conflict.time?.slice(0, 5)}. ¿Agendar igual?`)) return;
     }
     setLocalAppts((prev) => prev.map((a) => (a.id === meta.id ? { ...a, time: slotTime } : a)));
     rescheduleAppointment(meta.id, slotDate, slotTime);
@@ -65,7 +58,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
     const conflict = localAppts.find((a) => rangesOverlap(startMin, timeToMinutes(a.time)));
     if (conflict) {
       const name = conflict.patients ? `${conflict.patients.first_name} ${conflict.patients.last_name || ''}`.trim() : 'otro turno';
-      if (!confirm(`⚠️ Se superpone con el turno de ${name} a las ${conflict.time?.slice(0, 5)}. ¿Agendar igual?`)) {
+      if (!confirm(`Se superpone con el turno de ${name} a las ${conflict.time?.slice(0, 5)}. ¿Agendar igual?`)) {
         e.preventDefault();
       }
     }
@@ -94,9 +87,9 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
 
         <select name="type" value={formType} onChange={(e) => setFormType(e.target.value)}
           style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
-          <option value="patient">👤 Turno con paciente</option>
-          <option value="other">📌 Evento (reunión, colegio, etc.)</option>
-          <option value="block">🚫 Bloquear horario</option>
+          <option value="patient">Turno con paciente</option>
+          <option value="other">Evento (reunión, colegio, etc.)</option>
+          <option value="block">Bloquear horario</option>
         </select>
 
         {formType === 'patient' && (
@@ -138,8 +131,8 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
             <div style={{ display: 'flex', gap: 10 }}>
               <select name="modality" defaultValue="virtual"
                 style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
-                <option value="virtual">💻 Virtual</option>
-                <option value="presencial">🏠 Presencial</option>
+                <option value="virtual">Virtual</option>
+                <option value="presencial">Presencial</option>
               </select>
               <input name="price" type="number" placeholder="Precio" required
                 style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
@@ -166,59 +159,23 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
 
   return (
     <div style={{ padding: '4px 16px 90px' }}>
-      <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {visibleHours.map((h) => {
-          const hourStr = pad(h);
-          const slot = `${dateStr}|${hourStr}:00`;
-          const apptsInHour = localAppts.filter((a) => a.time?.startsWith(hourStr + ':'));
-          const othersInHour = others.filter((o) => o.time?.startsWith(hourStr + ':'));
-          const isFree = apptsInHour.length === 0 && othersInHour.length === 0;
-          const isHovered = hoverSlot === slot && isFree;
+      <HourList
+        dateStr={dateStr}
+        appointments={localAppts}
+        blocks={blocks}
+        others={others}
+        dragging={dragging}
+        hoverSlot={hoverSlot}
+        dragHandlers={dragHandlers}
+        onFreeSlotClick={openModalAt}
+      />
 
-          return (
-            <div key={h} style={{ display: 'flex', gap: 10, borderTop: '1px solid var(--border)', padding: '8px 0', minHeight: 56 }}>
-              <div style={{ width: 40, fontSize: 11, color: 'var(--text-lt)', flexShrink: 0, paddingTop: 2 }}>{hourStr}:00</div>
-              <div
-                data-slot={isFree ? slot : undefined}
-                style={{
-                  flex: 1, display: 'flex', flexDirection: 'column', gap: 6, borderRadius: 8,
-                  outline: isHovered ? '2px dashed var(--teal-dk)' : 'none', outlineOffset: 2,
-                  transition: 'outline .1s ease', minHeight: 34,
-                }}
-              >
-                {apptsInHour.map((appt) => {
-                  const conflicts = findConflicts(appt, localAppts);
-                  return (
-                    <div key={appt.id} {...dragHandlers({ id: appt.id, label: `${appt.time?.slice(0, 5)}` })}
-                      style={{ opacity: dragging?.id === appt.id ? 0.35 : 1, touchAction: 'pan-y' }}>
-                      <AppointmentRow appt={appt} compact hasConflict={conflicts.length > 0} conflictWith={conflicts[0]} />
-                    </div>
-                  );
-                })}
-                {othersInHour.map((o) => (
-                  <EventRow key={o.id} event={o} />
-                ))}
-                {isFree && (
-                  <button
-                    onClick={() => openModalAt(`${hourStr}:00`)}
-                    className="pressable"
-                    style={{
-                      textAlign: 'left', background: '#E6F8F3', border: '1px dashed #9FE0CE', borderRadius: 8,
-                      padding: '9px 12px', fontSize: 12, fontWeight: 700, color: 'var(--teal-dk)', cursor: 'pointer',
-                    }}
-                  >
-                    Libre — tocar para agendar
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <button className="fab-extended pressable" onClick={() => openModalAt(pad(new Date().getHours()) + ':00')}>
-        <span className="fab-icon">+</span> Nuevo turno
-      </button>
+      {mounted && createPortal(
+        <button className="fab-extended pressable" onClick={() => openModalAt(dateStr, pad(new Date().getHours()) + ':00')}>
+          <Plus size={20} strokeWidth={2.5} /> Nuevo turno
+        </button>,
+        document.body
+      )}
 
       {mounted && dragging && createPortal(
         <div

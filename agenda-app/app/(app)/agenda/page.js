@@ -74,9 +74,10 @@ export default async function AgendaPage({ searchParams }) {
     friday.setDate(monday.getDate() + 4);
     navLabel = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} – ${friday.getDate()} ${MONTH_NAMES[friday.getMonth()].slice(0, 3)}`;
 
-    const [{ data: appointments }, { data: blocksData }, { data: patients }] = await Promise.all([
+    const [{ data: appointments }, { data: blocksData }, { data: othersData }, { data: patients }] = await Promise.all([
       supabase.from('appointments').select('*, patients(first_name, last_name)').eq('type', 'patient').gte('date', days[0].key).lte('date', days[4].key),
       supabase.from('appointments').select('date, time').eq('type', 'block').gte('date', days[0].key).lte('date', days[4].key),
+      supabase.from('appointments').select('*').eq('type', 'other').gte('date', days[0].key).lte('date', days[4].key),
       supabase.from('patients').select('id, first_name, last_name').order('first_name', { ascending: true }),
     ]);
 
@@ -90,7 +91,12 @@ export default async function AgendaPage({ searchParams }) {
       if (!blockedByDate[b.date]) blockedByDate[b.date] = [];
       blockedByDate[b.date].push(b);
     });
-    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} blockedByDate={blockedByDate} patients={patients || []} />;
+    const othersByDate = {};
+    (othersData || []).forEach((o) => {
+      if (!othersByDate[o.date]) othersByDate[o.date] = [];
+      othersByDate[o.date].push(o);
+    });
+    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} blockedByDate={blockedByDate} othersByDate={othersByDate} patients={patients || []} />;
   }
 
   if (view === 'month') {
