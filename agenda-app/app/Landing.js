@@ -57,10 +57,10 @@ const FEATURES = [
 function MockAgenda() {
   const rows = [
     { t: '09:00', label: 'Libre', free: true },
-    { t: '10:00', label: 'Carola', color: '#3B6FD9' },
+    { t: '10:00', label: 'Juan', color: '#3B6FD9' },
     { t: '11:00', label: 'Libre', free: true },
-    { t: '12:00', label: 'Pilar Goyret', color: '#2E9C6A' },
-    { t: '13:00', label: 'Santiago · ⚠ superpuesto', color: '#C62828' },
+    { t: '12:00', label: 'Valentina', color: '#2E9C6A' },
+    { t: '13:00', label: 'Pedro · ⚠ superpuesto', color: '#C62828' },
   ];
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -108,9 +108,9 @@ function MockFreeSlots() {
 
 function MockPatients() {
   const patients = [
-    { name: 'Agustina', status: 'Activo', badge: 'badge-teal', last: 'Última: 12/09' },
-    { name: 'Tomás', status: 'Pausado', badge: 'badge-amber', last: 'Última: 30/08' },
-    { name: 'Martina', status: 'Alta', badge: 'badge-violet', last: 'Última: 01/07' },
+    { name: 'Micaela', status: 'Activo', badge: 'badge-teal', last: 'Última: 12/09' },
+    { name: 'Luca', status: 'Pausado', badge: 'badge-amber', last: 'Última: 30/08' },
+    { name: 'Agustín', status: 'Alta', badge: 'badge-violet', last: 'Última: 01/07' },
   ];
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
