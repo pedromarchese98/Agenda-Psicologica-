@@ -1,11 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginInner />
+    </Suspense>
+  );
+}
+
+function LoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,6 +24,10 @@ export default function LoginPage() {
   const [forgotSent, setForgotSent] = useState(false);
   const [signupSent, setSignupSent] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  useEffect(() => {
+    if (searchParams.get('mode') === 'signup') setMode('signup');
+  }, [searchParams]);
 
   async function handleSubmit(e) {
     e.preventDefault();

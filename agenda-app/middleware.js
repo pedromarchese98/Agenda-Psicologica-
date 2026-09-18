@@ -28,6 +28,7 @@ export async function middleware(request) {
   } = await supabase.auth.getUser();
 
   const isAuthExempt =
+    request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/actualizar-clave');
 
