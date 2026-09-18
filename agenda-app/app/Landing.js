@@ -27,8 +27,8 @@ const FEATURES = [
   {
     icon: CalendarClock,
     title: 'Encontrá un hueco en segundos',
-    text: 'Turnos libres te muestra, de un vistazo, todos los horarios disponibles de las próximas 4 semanas — sin tener que recorrer el calendario día por día para encontrar un espacio.',
-    bullets: ['4 semanas de disponibilidad de un vistazo', 'Gestioná bloqueos de horario aparte', 'Excluye fines de semana automáticamente'],
+    text: 'Encontrá un hueco en tu agenda, todos los horarios disponibles de las próximas 4 semanas — sin tener que recorrer el calendario día por día para encontrar un espacio.',
+    bullets: ['4 semanas de disponibilidad de un vistazo', 'Bloqueá los horarios de tu agenda'],
     mock: 'free',
   },
   {
@@ -49,7 +49,7 @@ const FEATURES = [
     icon: ShieldCheck,
     title: 'Lista para crecer con tu equipo',
     text: 'Cada profesional tiene su propia agenda, pacientes y precios — completamente aislados y privados, aunque compartan la misma plataforma.',
-    bullets: ['Datos privados por profesional', 'Se instala como app en iPhone y iPad', 'Sin planillas, sin Apps Script'],
+    bullets: ['Datos privados por profesional', 'Se instala como app en iPhone y iPad', 'Sin planillas, sin excels, todo desde tu celular'],
     mock: 'team',
   },
 ];
@@ -193,7 +193,7 @@ export default function Landing() {
       <section className="landing-hero" style={{ padding: '64px 20px 60px', textAlign: 'center' }}>
         <Reveal>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(62,207,178,.12)', color: 'var(--teal)', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, marginBottom: 20 }}>
-            <Bell size={13} /> Hecha para el día a día de un consultorio real
+            <Bell size={13} /> Hecha por y para psicólogos
           </div>
           <h1 style={{ color: '#fff', fontSize: 32, fontWeight: 800, lineHeight: 1.15, maxWidth: 480, margin: '0 auto 16px', letterSpacing: '-0.02em' }}>
             Tu agenda, tus pacientes y tus números — sin planillas, sin fricción.
@@ -223,7 +223,6 @@ export default function Landing() {
                 <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <Icon size={17} color="var(--teal)" />
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>0{i + 1}</span>
               </div>
               <h2 style={{ fontSize: 21, fontWeight: 800, margin: '0 0 10px', letterSpacing: '-0.01em' }}>{f.title}</h2>
               <p style={{ fontSize: 14, color: 'var(--text-md)', lineHeight: 1.55, margin: '0 0 16px' }}>{f.text}</p>
