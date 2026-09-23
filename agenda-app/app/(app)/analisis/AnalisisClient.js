@@ -26,18 +26,38 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
 
   const [debtPending, startDebtTransition] = useTransition();
   const [openDebtId, setOpenDebtId] = useState(null);
+  const [openDebtorKey, setOpenDebtorKey] = useState(null);
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('transfer');
   const [localDebts, setLocalDebts] = useState(allDebts);
 
-  const monthProjection = useMemo(() => {
-    const y = today.getFullYear(), m = today.getMonth();
+  const debtorGroups = useMemo(() => {
+    const groups = {};
+    localDebts.forEach((d) => {
+      const key = d.patient_id || (d.patients ? `${d.patients.first_name}-${d.patients.last_name}` : 'sin-nombre');
+      const name = d.patients ? `${d.patients.first_name} ${d.patients.last_name || ''}`.trim() : 'Sin nombre';
+      if (!groups[key]) groups[key] = { key, name, items: [], total: 0 };
+      groups[key].items.push(d);
+      groups[key].total += (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
+    });
+    return Object.values(groups)
+      .map((g) => ({ ...g, items: g.items.sort((a, b) => a.date.localeCompare(b.date)) }))
+      .sort((a, b) => b.total - a.total);
+  }, [localDebts]);
+
+  const [projectionOffset, setProjectionOffset] = useState(0);
+
+  const projection = useMemo(() => {
+    const base = new Date(today.getFullYear(), today.getMonth() + projectionOffset, 1);
+    const y = base.getFullYear(), m = base.getMonth();
     const monthStart = `${y}-${pad(m + 1)}-01`;
-    const monthEnd = `${y}-${pad(m + 1)}-31`;
-    return appointments
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const monthEnd = `${y}-${pad(m + 1)}-${pad(lastDay)}`;
+    const total = appointments
       .filter((a) => a.date >= monthStart && a.date <= monthEnd && a.attendance !== 'no' && a.attendance !== 'no-free')
       .reduce((s, a) => s + (Number(a.price) || 0), 0);
-  }, [appointments]);
+    return { label: `${MONTH_SHORT[m]} ${y}`, total };
+  }, [appointments, projectionOffset]);
 
   function remaining(d) {
     return (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
@@ -194,7 +214,6 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
     { label: 'Asistencia', value: `${stats.attendanceRate}%`, sub: `${stats.att} de ${stats.pastTotal} (pasadas)`, color: 'var(--sage)' },
     { label: 'Cancelaciones', value: stats.totalCanc, sub: `Día: ${stats.cancDay} · Anticip.: ${stats.cancAdv} · Liberó: ${stats.cancFree}`, color: 'var(--rose)' },
     { label: 'Recaudado', value: fmt$(stats.coll), color: 'var(--teal)' },
-    { label: 'Proyección del mes', value: fmt$(monthProjection), sub: 'turnos no cancelados', color: 'var(--teal-dk)' },
     { label: 'Pendiente de cobro', value: fmt$(stats.debt), color: 'var(--amber)' },
     { label: 'Efectivo', value: fmt$(stats.cash), color: 'var(--navy)' },
     { label: 'Transferencia', value: fmt$(stats.transf), color: 'var(--navy)' },
@@ -240,6 +259,18 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
         placeholder="🔍 Filtrar por paciente (vacío = todos)"
         style={{ width: '100%', padding: 10, borderRadius: 10, border: '1px solid var(--border)', fontSize: 13, marginBottom: 14 }}
       />
+
+      <div className="card" style={{ padding: 14, marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={() => setProjectionOffset((v) => v - 1)} className="btn btn-secondary pressable" style={{ padding: '6px 11px' }}>‹</button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>
+            Proyección de facturación — {projection.label}
+          </div>
+          <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--teal-dk)' }}>{fmt$(projection.total)}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-lt)' }}>turnos agendados, sin contar cancelados</div>
+        </div>
+        <button onClick={() => setProjectionOffset((v) => v + 1)} className="btn btn-secondary pressable" style={{ padding: '6px 11px' }}>›</button>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10, marginBottom: 20 }}>
         {kpis.map((k) => (
@@ -310,33 +341,50 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
           <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin deudores 🙌</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {localDebts.map((d) => {
-              const name = d.patients ? `${d.patients.first_name} ${d.patients.last_name || ''}`.trim() : 'Sin nombre';
-              const rem = remaining(d);
-              const isOpen = openDebtId === d.id;
+            {debtorGroups.map((group) => {
+              const isOpen = openDebtorKey === group.key;
               return (
-                <div key={d.id} className="card" style={{ padding: 10, border: '1px solid var(--border)' }}>
+                <div key={group.key} className="card" style={{ padding: 10, border: '1px solid var(--border)' }}>
                   <div
-                    onClick={() => { setOpenDebtId(isOpen ? null : d.id); setPayAmount(rem.toString()); }}
+                    onClick={() => setOpenDebtorKey(isOpen ? null : group.key)}
                     style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, cursor: 'pointer' }}
                   >
-                    <span>{name} <span style={{ color: 'var(--text-lt)', fontSize: 11 }}>· {d.date}</span></span>
-                    <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
+                    <span>{group.name} <span style={{ color: 'var(--text-lt)', fontSize: 11 }}>· {group.items.length} sesión{group.items.length !== 1 ? 'es' : ''}</span></span>
+                    <strong style={{ color: 'var(--amber)' }}>{fmt$(group.total)}</strong>
                   </div>
                   {isOpen && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                      <input
-                        type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                        style={{ flex: 1, minWidth: 90, padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}
-                      />
-                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-                        style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}>
-                        <option value="transfer">Transferencia</option>
-                        <option value="cash">Efectivo</option>
-                      </select>
-                      <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }} onClick={() => handleRegisterPayment(d)} disabled={debtPending}>
-                        Registrar pago
-                      </button>
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {group.items.map((d) => {
+                        const rem = remaining(d);
+                        const isOpenPay = openDebtId === d.id;
+                        return (
+                          <div key={d.id}>
+                            <div
+                              onClick={() => { setOpenDebtId(isOpenPay ? null : d.id); setPayAmount(rem.toString()); }}
+                              style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, cursor: 'pointer' }}
+                            >
+                              <span style={{ color: 'var(--text-md)' }}>{d.date}</span>
+                              <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
+                            </div>
+                            {isOpenPay && (
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                                <input
+                                  type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                                  style={{ flex: 1, minWidth: 90, padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}
+                                />
+                                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+                                  style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}>
+                                  <option value="transfer">Transferencia</option>
+                                  <option value="cash">Efectivo</option>
+                                </select>
+                                <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }} onClick={() => handleRegisterPayment(d)} disabled={debtPending}>
+                                  Registrar pago
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

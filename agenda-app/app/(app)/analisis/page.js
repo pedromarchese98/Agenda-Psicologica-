@@ -9,7 +9,7 @@ export default async function AnalisisPage() {
     supabase.from('patients').select('*', { count: 'exact', head: true }).eq('status', 'active'),
     supabase
       .from('appointments')
-      .select('id, date, time, price, amount_paid, patients(first_name, last_name)')
+      .select('id, patient_id, date, time, price, amount_paid, patients(first_name, last_name)')
       .eq('type', 'patient')
       .eq('payment', 'unpaid')
       .order('date', { ascending: true }),

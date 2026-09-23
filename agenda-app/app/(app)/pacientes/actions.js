@@ -35,6 +35,32 @@ export async function deletePatient(patientId) {
   revalidatePath('/agenda');
 }
 
+export async function createPatient(firstName, lastName) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data } = await supabase
+    .from('patients')
+    .insert({ owner_id: user.id, first_name: firstName, last_name: lastName || null })
+    .select('id')
+    .single();
+  revalidatePath('/pacientes');
+  return data?.id;
+}
+
+export async function applyPriceChange(patientIds, price, effectiveDate) {
+  const supabase = createClient();
+  await supabase
+    .from('appointments')
+    .update({ price })
+    .in('patient_id', patientIds)
+    .eq('type', 'patient')
+    .gte('date', effectiveDate);
+  revalidatePath('/pacientes');
+  revalidatePath('/agenda');
+}
+
 export async function addNote(patientId, text) {
   if (!text?.trim()) return;
   const supabase = createClient();

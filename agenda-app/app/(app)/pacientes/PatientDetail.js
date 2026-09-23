@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule, deletePatient } from './actions';
+import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule, deletePatient, applyPriceChange } from './actions';
 
 const STATUS = {
   active: { label: 'Activo en tratamiento', badge: 'badge-teal', color: 'var(--teal-dk)' },
@@ -15,12 +15,14 @@ const STATUS = {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function PatientDetail({ patient, notes, upcoming, stats }) {
+export default function PatientDetail({ patient, notes, upcoming, stats, currentPrice }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
+  const [priceEditing, setPriceEditing] = useState(false);
+  const [priceValue, setPriceValue] = useState(currentPrice || 0);
   const [freqOpen, setFreqOpen] = useState(false);
   const [freqDate, setFreqDate] = useState(upcoming[0]?.date || todayStr());
   const [freqTime, setFreqTime] = useState(upcoming[0]?.time?.slice(0, 5) || '10:00');
@@ -42,6 +44,19 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
     startTransition(async () => {
       await deletePatient(patient.id);
       router.push('/pacientes');
+    });
+  }
+
+  function todayStr2() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function savePrice() {
+    startTransition(async () => {
+      await applyPriceChange([patient.id], parseFloat(priceValue) || 0, todayStr2());
+      setPriceEditing(false);
+      router.refresh();
     });
   }
 
@@ -71,6 +86,30 @@ export default function PatientDetail({ patient, notes, upcoming, stats }) {
           <div><div style={{ fontSize: 18, fontWeight: 800, color: '#1B5E20' }}>{fmt$(stats.paid)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Recaudado</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: stats.debt > 0 ? 'var(--amber)' : 'var(--text-lt)' }}>{fmt$(stats.debt)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Debe</div></div>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Precio de sesión
+        </div>
+        {!priceEditing ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 20, fontWeight: 800 }}>{fmt$(currentPrice || 0)}</span>
+            <button onClick={() => { setPriceValue(currentPrice || 0); setPriceEditing(true); }} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>
+              Editar
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="number" value={priceValue} onChange={(e) => setPriceValue(e.target.value)}
+              style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid var(--border)' }} />
+            <button onClick={savePrice} className="btn btn-primary pressable" style={{ fontSize: 12 }} disabled={isPending}>Guardar</button>
+            <button onClick={() => setPriceEditing(false)} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>Cancelar</button>
+          </div>
+        )}
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '8px 0 0' }}>
+          Se aplica a los turnos futuros desde hoy. Para cambiarlo desde una fecha específica o a varios pacientes a la vez, usá "Actualizar precio a varios pacientes" en la lista de Pacientes.
+        </p>
       </div>
 
       <div className="card" style={{ padding: 14 }}>

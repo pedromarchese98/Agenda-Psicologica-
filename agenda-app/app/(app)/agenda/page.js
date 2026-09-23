@@ -4,6 +4,7 @@ import DayView from './DayView';
 import WeekView from './WeekView';
 import MonthView from './MonthView';
 import SwipeDayNav from './SwipeDayNav';
+import OnboardingWizard from '../onboarding/OnboardingWizard';
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -35,6 +36,14 @@ export default async function AgendaPage({ searchParams }) {
   const supabase = createClient();
   const d = new Date(dateStr + 'T00:00:00');
   const todayKey = toDateStr(new Date());
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const { data: settings } = await supabase.from('settings').select('onboarding_completed').eq('owner_id', user.id).maybeSingle();
+  if (!settings?.onboarding_completed) {
+    return <OnboardingWizard />;
+  }
 
   const prevHref =
     view === 'week' ? `/agenda?view=week&date=${addWeeks(dateStr, -1)}` :

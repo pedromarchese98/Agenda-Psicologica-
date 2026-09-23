@@ -3,6 +3,8 @@ import Link from 'next/link';
 import PatientDetail from './PatientDetail';
 import PatientDetailModal from './PatientDetailModal';
 import PatientsFilterBar from './PatientsFilterBar';
+import AddPatientButton from './AddPatientButton';
+import BulkPriceUpdateModal from './BulkPriceUpdateModal';
 
 const STATUS_BADGE = {
   active: 'badge-teal', paused: 'badge-amber', suspended: 'badge-amber',
@@ -62,10 +64,12 @@ export default async function PacientesPage({ searchParams }) {
     const paid = (allAppts || []).reduce((s, a) => s + (a.payment === 'paid' ? Number(a.price) || 0 : 0), 0);
     const debt = (allAppts || []).reduce((s, a) => s + (a.payment === 'unpaid' ? (Number(a.price) || 0) - (Number(a.amount_paid) || 0) : 0), 0);
     const attendanceRate = total ? Math.round((attended / total) * 100) : 0;
+    const currentPrice = upcoming[0]?.price ?? (past.length ? past[past.length - 1].price : null);
 
     detail = {
       patient, notes: notes || [], upcoming,
       stats: { total, attended, cancelled, paid, debt, attendanceRate },
+      currentPrice,
     };
   }
 
@@ -75,6 +79,8 @@ export default async function PacientesPage({ searchParams }) {
     <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100dvh - 130px)' }}>
       <div style={{ width: '100%', background: 'var(--card)' }}>
         <PatientsFilterBar status={status} q={q} />
+        <AddPatientButton />
+        <BulkPriceUpdateModal patients={patients || []} />
 
         <div
           style={{
@@ -127,7 +133,7 @@ export default async function PacientesPage({ searchParams }) {
 
       {detail && (
         <PatientDetailModal backHref={backHref}>
-          <PatientDetail patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats} />
+          <PatientDetail patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats} currentPrice={detail.currentPrice} />
         </PatientDetailModal>
       )}
     </div>
