@@ -83,7 +83,7 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
       const qm = Math.max(0, m - 2);
       return { from: `${y}-${pad(qm + 1)}-01`, to: toDateStr(today) };
     }
-    if (period === 'year') return { from: `${y}-01-01`, to: `${y}-12-31` };
+    if (period === 'year') return { from: `${y}-01-01`, to: toDateStr(today) };
     if (period === 'custom') return { from: rangeFrom || `${y}-01-01`, to: rangeTo || toDateStr(today) };
     return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}` };
   }, [period, rangeFrom, rangeTo]);

@@ -15,14 +15,14 @@ const STATUS = {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function PatientDetail({ patient, notes, upcoming, stats, currentPrice }) {
+export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
-  const [priceEditing, setPriceEditing] = useState(false);
-  const [priceValue, setPriceValue] = useState(currentPrice || 0);
+  const [editingModality, setEditingModality] = useState(null); // 'virtual' | 'presencial' | null
+  const [priceValue, setPriceValue] = useState(0);
   const [freqOpen, setFreqOpen] = useState(false);
   const [freqDate, setFreqDate] = useState(upcoming[0]?.date || todayStr());
   const [freqTime, setFreqTime] = useState(upcoming[0]?.time?.slice(0, 5) || '10:00');
@@ -54,8 +54,8 @@ export default function PatientDetail({ patient, notes, upcoming, stats, current
 
   function savePrice() {
     startTransition(async () => {
-      await applyPriceChange([patient.id], parseFloat(priceValue) || 0, todayStr2());
-      setPriceEditing(false);
+      await applyPriceChange([patient.id], parseFloat(priceValue) || 0, todayStr2(), editingModality);
+      setEditingModality(null);
       router.refresh();
     });
   }
@@ -92,23 +92,36 @@ export default function PatientDetail({ patient, notes, upcoming, stats, current
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
           Precio de sesión
         </div>
-        {!priceEditing ? (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 20, fontWeight: 800 }}>{fmt$(currentPrice || 0)}</span>
-            <button onClick={() => { setPriceValue(currentPrice || 0); setPriceEditing(true); }} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>
-              Editar
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="number" value={priceValue} onChange={(e) => setPriceValue(e.target.value)}
-              style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid var(--border)' }} />
-            <button onClick={savePrice} className="btn btn-primary pressable" style={{ fontSize: 12 }} disabled={isPending}>Guardar</button>
-            <button onClick={() => setPriceEditing(false)} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>Cancelar</button>
-          </div>
-        )}
-        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '8px 0 0' }}>
-          Se aplica a los turnos futuros desde hoy. Para cambiarlo desde una fecha específica o a varios pacientes a la vez, usá "Actualizar precio a varios pacientes" en la lista de Pacientes.
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {[
+            { key: 'virtual', label: 'Virtual', price: priceVirtual },
+            { key: 'presencial', label: 'Presencial', price: pricePresencial },
+          ].map(({ key, label, price }) => (
+            <div key={key}>
+              {editingModality !== key ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-md)', fontWeight: 600 }}>{label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 17, fontWeight: 800 }}>{price != null ? fmt$(price) : '—'}</span>
+                    <button onClick={() => { setPriceValue(price || 0); setEditingModality(key); }} className="btn btn-secondary pressable" style={{ fontSize: 11, padding: '5px 9px' }}>
+                      Editar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: 'var(--text-md)', width: 70 }}>{label}</span>
+                  <input type="number" value={priceValue} onChange={(e) => setPriceValue(e.target.value)}
+                    style={{ flex: 1, padding: 9, borderRadius: 8, border: '1px solid var(--border)' }} autoFocus />
+                  <button onClick={savePrice} className="btn btn-primary pressable" style={{ fontSize: 12 }} disabled={isPending}>Guardar</button>
+                  <button onClick={() => setEditingModality(null)} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>Cancelar</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '10px 0 0' }}>
+          Se aplica a los turnos futuros de esa modalidad, desde hoy. Para cambiarlo desde otra fecha o a varios pacientes a la vez, usá el botón "Precios" en la lista de Pacientes.
         </p>
       </div>
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import { createPatient } from './actions';
 
-export default function AddPatientButton() {
+export default function AddPatientButton({ compact }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [first, setFirst] = useState('');
@@ -29,9 +29,11 @@ export default function AddPatientButton() {
       <button
         onClick={() => setOpen(true)}
         className="btn btn-primary pressable"
-        style={{ width: 'calc(100% - 24px)', margin: '10px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+        style={compact
+          ? { flex: 1, fontSize: 12, padding: '9px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }
+          : { width: 'calc(100% - 24px)', margin: '10px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
       >
-        <Plus size={16} /> Agregar paciente
+        <Plus size={15} /> Agregar
       </button>
 
       {open && (

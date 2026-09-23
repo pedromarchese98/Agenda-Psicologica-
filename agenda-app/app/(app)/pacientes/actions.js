@@ -49,14 +49,16 @@ export async function createPatient(firstName, lastName) {
   return data?.id;
 }
 
-export async function applyPriceChange(patientIds, price, effectiveDate) {
+export async function applyPriceChange(patientIds, price, effectiveDate, modality) {
   const supabase = createClient();
-  await supabase
+  let query = supabase
     .from('appointments')
     .update({ price })
     .in('patient_id', patientIds)
     .eq('type', 'patient')
     .gte('date', effectiveDate);
+  if (modality) query = query.eq('modality', modality);
+  await query;
   revalidatePath('/pacientes');
   revalidatePath('/agenda');
 }

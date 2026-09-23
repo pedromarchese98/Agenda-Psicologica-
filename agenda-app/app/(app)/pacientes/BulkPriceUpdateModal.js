@@ -2,18 +2,28 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Laptop, Home } from 'lucide-react';
 import { applyPriceChange } from './actions';
+
+const STATUS_BADGE = {
+  active: 'badge-teal', paused: 'badge-amber', suspended: 'badge-amber',
+  abandoned: 'badge-rose', discharged: 'badge-violet', referred: 'badge-blue',
+};
+const STATUS_LABEL = {
+  active: 'Activo', paused: 'Pausado', suspended: 'Suspendido',
+  abandoned: 'Abandonó', discharged: 'Alta', referred: 'Derivado',
+};
 
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function BulkPriceUpdateModal({ patients }) {
+export default function BulkPriceUpdateModal({ patients, infoByPatient, compact }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [price, setPrice] = useState('');
+  const [priceVirtual, setPriceVirtual] = useState('');
+  const [pricePresencial, setPricePresencial] = useState('');
   const [effectiveDate, setEffectiveDate] = useState(todayStr());
   const [selected, setSelected] = useState([]);
   const [isPending, startTransition] = useTransition();
@@ -21,19 +31,18 @@ export default function BulkPriceUpdateModal({ patients }) {
   function toggle(id) {
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
-
   function selectAll() {
     setSelected(patients.map((p) => p.id));
   }
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (!price || selected.length === 0) return;
+    if (selected.length === 0 || (!priceVirtual && !pricePresencial)) return;
     startTransition(async () => {
-      await applyPriceChange(selected, parseFloat(price), effectiveDate);
+      if (priceVirtual) await applyPriceChange(selected, parseFloat(priceVirtual), effectiveDate, 'virtual');
+      if (pricePresencial) await applyPriceChange(selected, parseFloat(pricePresencial), effectiveDate, 'presencial');
       setOpen(false);
-      setPrice('');
-      setSelected([]);
+      setPriceVirtual(''); setPricePresencial(''); setSelected([]);
       router.refresh();
     });
   }
@@ -43,9 +52,11 @@ export default function BulkPriceUpdateModal({ patients }) {
       <button
         onClick={() => setOpen(true)}
         className="btn btn-secondary pressable"
-        style={{ width: 'calc(100% - 24px)', margin: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+        style={compact
+          ? { flex: 1, fontSize: 12, padding: '9px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }
+          : { width: 'calc(100% - 24px)', margin: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
       >
-        <DollarSign size={15} /> Actualizar precio a varios pacientes
+        <DollarSign size={15} /> Precios
       </button>
 
       {open && (
@@ -58,25 +69,35 @@ export default function BulkPriceUpdateModal({ patients }) {
             onSubmit={handleSubmit}
             onClick={(e) => e.stopPropagation()}
             className="card sheet-box"
-            style={{ width: '100%', maxHeight: '85dvh', overflowY: 'auto', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: '10px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12 }}
+            style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: '10px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12 }}
           >
             <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 2, margin: '4px auto' }} />
             <h3 style={{ margin: 0, fontSize: 16 }}>Actualizar precio de sesión</h3>
             <p style={{ fontSize: 12, color: 'var(--text-md)', margin: 0 }}>
-              Se aplica a todos los turnos futuros (desde la fecha elegida) de los pacientes que marques abajo. El historial pasado no se toca.
+              Se aplica solo a los turnos futuros (desde la fecha elegida) que coincidan con la modalidad, de los pacientes que marques abajo. Dejá un precio en blanco si no querés tocar esa modalidad.
             </p>
 
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)' }}>Nuevo precio</label>
-                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} required
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Laptop size={12} /> Virtual
+                </label>
+                <input type="number" value={priceVirtual} onChange={(e) => setPriceVirtual(e.target.value)} placeholder="Sin cambios"
                   style={{ width: '100%', marginTop: 4, padding: 11, borderRadius: 10, border: '1px solid var(--border)' }} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)' }}>Vigente desde</label>
-                <input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Home size={12} /> Presencial
+                </label>
+                <input type="number" value={pricePresencial} onChange={(e) => setPricePresencial(e.target.value)} placeholder="Sin cambios"
                   style={{ width: '100%', marginTop: 4, padding: 11, borderRadius: 10, border: '1px solid var(--border)' }} />
               </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)' }}>Vigente desde</label>
+              <input type="date" value={effectiveDate} onChange={(e) => setEffectiveDate(e.target.value)} required
+                style={{ width: '100%', marginTop: 4, padding: 11, borderRadius: 10, border: '1px solid var(--border)' }} />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -85,13 +106,22 @@ export default function BulkPriceUpdateModal({ patients }) {
                 Marcar todos
               </button>
             </div>
-            <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
-              {patients.map((p) => (
-                <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
-                  <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} />
-                  {p.first_name} {p.last_name || ''}
-                </label>
-              ))}
+            <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+              {patients.map((p) => {
+                const info = infoByPatient?.[p.id];
+                return (
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                    <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} />
+                    <span style={{ flex: 1 }}>{p.first_name} {p.last_name || ''}</span>
+                    <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`}>{STATUS_LABEL[p.status] || 'Activo'}</span>
+                    {info?.modality && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-lt)' }}>
+                        {info.modality === 'virtual' ? <Laptop size={12} /> : <Home size={12} />}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
