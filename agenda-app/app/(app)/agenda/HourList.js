@@ -41,7 +41,7 @@ export default function HourList({
 
         return (
           <div key={h} style={{ display: 'flex', gap, borderTop: '1px solid var(--border)', padding: rowPad, minHeight }}>
-            <div style={{ width: labelW, fontSize: labelSize, color: 'var(--text-lt)', flexShrink: 0, paddingTop: 2 }}>
+            <div style={{ width: labelW, fontSize: labelSize, color: 'var(--text-lt)', flexShrink: 0, paddingTop: 2, fontFamily: 'var(--font-mono, monospace)' }}>
               {hourStr}:00
             </div>
             <div

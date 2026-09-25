@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule, deletePatient, applyPriceChange } from './actions';
+import { registerPayment } from '../analisis/actions';
 
 const STATUS = {
   active: { label: 'Activo en tratamiento', badge: 'badge-teal', color: 'var(--teal-dk)' },
@@ -15,9 +16,14 @@ const STATUS = {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial }) {
+export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial, pendingPayments = [] }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [payPending, startPayTransition] = useTransition();
+  const [localPending, setLocalPending] = useState(pendingPayments);
+  const [openPayId, setOpenPayId] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('transfer');
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
@@ -60,6 +66,22 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
     });
   }
 
+  function remaining(d) {
+    return (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
+  }
+
+  function handleRegisterPayment(debt) {
+    const amount = parseFloat(payAmount) || 0;
+    if (amount <= 0) return;
+    setLocalPending((prev) => {
+      const updated = prev.map((d) => (d.id === debt.id ? { ...d, amount_paid: (Number(d.amount_paid) || 0) + amount } : d));
+      return updated.filter((d) => remaining(d) > 0.01);
+    });
+    startPayTransition(() => registerPayment(debt.id, amount, payMethod));
+    setOpenPayId(null);
+    setPayAmount('');
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -87,6 +109,47 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
           <div><div style={{ fontSize: 18, fontWeight: 800, color: stats.debt > 0 ? 'var(--amber)' : 'var(--text-lt)' }}>{fmt$(stats.debt)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Debe</div></div>
         </div>
       </div>
+
+      {localPending.length > 0 && (
+        <div className="card" style={{ padding: 14, border: '1px solid var(--amber-tint)' }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 10 }}>
+            Pagos pendientes
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {localPending.map((d) => {
+              const rem = remaining(d);
+              const isOpenPay = openPayId === d.id;
+              return (
+                <div key={d.id} style={{ background: 'var(--surface)', borderRadius: 10, padding: '9px 11px' }}>
+                  <div
+                    onClick={() => { setOpenPayId(isOpenPay ? null : d.id); setPayAmount(rem.toString()); }}
+                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    <span style={{ color: 'var(--text-md)' }}>{d.date} · {d.time?.slice(0, 5)}</span>
+                    <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
+                  </div>
+                  {isOpenPay && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                      <input
+                        type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
+                        style={{ flex: 1, minWidth: 90, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}
+                      />
+                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+                        style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
+                        <option value="transfer">Transferencia</option>
+                        <option value="cash">Efectivo</option>
+                      </select>
+                      <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '8px 11px' }} onClick={() => handleRegisterPayment(d)} disabled={payPending}>
+                        Registrar pago
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>

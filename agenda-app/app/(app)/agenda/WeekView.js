@@ -12,6 +12,7 @@ const DAY_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'vierne
 const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 function pad(n) { return String(n).padStart(2, '0'); }
+function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
 export default function WeekView({ days, appointmentsByDate, blockedByDate, othersByDate, patients }) {
   const [mounted, setMounted] = useState(false);
@@ -70,17 +71,22 @@ export default function WeekView({ days, appointmentsByDate, blockedByDate, othe
     }
   }
 
+  const todayKey = toDateStr(new Date());
+
   return (
     <div style={{ padding: '4px 16px 90px' }}>
       {days.map((d) => {
         const dt = new Date(d.key + 'T00:00:00');
+        const isToday = d.key === todayKey;
         return (
           <div key={d.key} style={{ marginBottom: 18 }}>
             <div style={{
-              fontSize: 12, fontWeight: 700, color: 'var(--navy)', textTransform: 'capitalize',
+              fontSize: 12, fontWeight: 700, color: isToday ? 'var(--teal-dk)' : 'var(--navy)', textTransform: 'capitalize',
               padding: '6px 0', position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 2,
+              display: 'flex', alignItems: 'center', gap: 6,
             }}>
               {DAY_NAMES[dt.getDay()]} {dt.getDate()} de {MONTH_SHORT[dt.getMonth()]}
+              {isToday && <span className="badge badge-teal">Hoy</span>}
             </div>
             <HourList
               dateStr={d.key}

@@ -23,15 +23,22 @@ function initials(p) {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function PatientsBoard({ counts, statuses, q, patients, allPatientsForBulk, infoByPatient }) {
+export default function PatientsBoard({
+  counts, statuses, q, patients, allPatientsForBulk, infoByPatient,
+  debtByPatient = {}, debtorsCount = 0, debtorsOnly = false,
+}) {
   const router = useRouter();
   const [search, setSearch] = useState(q || '');
 
   function pushParams(next) {
     const params = new URLSearchParams();
-    params.set('statuses', (next.statuses ?? statuses).join(','));
-    const query = next.q ?? search;
-    if (query.trim()) params.set('q', query);
+    if (next.debtors ?? debtorsOnly) {
+      params.set('debtors', '1');
+    } else {
+      params.set('statuses', (next.statuses ?? statuses).join(','));
+      const query = next.q ?? search;
+      if (query.trim()) params.set('q', query);
+    }
     router.push(`/pacientes?${params.toString()}`);
   }
 
@@ -39,10 +46,14 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
     const isOnly = statuses.length === 1 && statuses[0] === key;
     if (statuses.includes(key)) {
       if (isOnly) return; // que quede siempre al menos una categoría elegida
-      pushParams({ statuses: statuses.filter((s) => s !== key) });
+      pushParams({ statuses: statuses.filter((s) => s !== key), debtors: false });
     } else {
-      pushParams({ statuses: [...statuses, key] });
+      pushParams({ statuses: [...statuses, key], debtors: false });
     }
+  }
+
+  function toggleDebtors() {
+    pushParams({ debtors: !debtorsOnly });
   }
 
   return (
@@ -52,15 +63,15 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && pushParams({})}
-          onBlur={() => pushParams({})}
+          onKeyDown={(e) => e.key === 'Enter' && pushParams({ debtors: false })}
+          onBlur={() => pushParams({ debtors: false })}
           placeholder="Buscar por nombre…"
           style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, marginBottom: 12 }}
         />
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
           {STATUS_ORDER.map((key) => {
-            const active = statuses.includes(key);
+            const active = !debtorsOnly && statuses.includes(key);
             const count = counts[key] || 0;
             return (
               <button
@@ -73,6 +84,13 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
               </button>
             );
           })}
+          <button
+            onClick={toggleDebtors}
+            className={`pressable badge ${debtorsOnly ? 'badge-amber' : 'badge-neutral'}`}
+            style={{ border: 'none', cursor: 'pointer', opacity: debtorsCount === 0 ? 0.4 : 1, fontSize: 12, padding: '6px 11px', display: 'inline-flex', alignItems: 'center', gap: 3 }}
+          >
+            <DollarSign size={11} /> Deudores · {debtorsCount}
+          </button>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
@@ -82,8 +100,14 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px 10px 16px' }}>
+        {debtorsOnly && patients.length > 0 && (
+          <p style={{ fontSize: 11, color: 'var(--text-lt)', padding: '6px 6px 2px' }}>
+            Pacientes con pagos pendientes. Tocá uno para ver el detalle y registrar el pago.
+          </p>
+        )}
         {patients.map((p) => {
           const info = infoByPatient[p.id];
+          const debt = debtByPatient[p.id] || 0;
           return (
             <Link
               key={p.id}
@@ -100,8 +124,14 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
                   <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`}>{STATUS_LABEL[p.status]?.replace(/s$/, '') || 'Activo'}</span>
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-lt)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {info?.modality && (info.modality === 'virtual' ? <Laptop size={11} /> : <Home size={11} />)}
-                  {info ? `${fmt$(info.price)} · Última: ${info.lastVisit}` : 'Sin turnos registrados'}
+                  {debtorsOnly && debt > 0 ? (
+                    <span style={{ color: 'var(--amber)', fontWeight: 700 }}>Debe {fmt$(debt)}</span>
+                  ) : (
+                    <>
+                      {info?.modality && (info.modality === 'virtual' ? <Laptop size={11} /> : <Home size={11} />)}
+                      {info ? `${fmt$(info.price)} · Última: ${info.lastVisit}` : 'Sin turnos registrados'}
+                    </>
+                  )}
                 </div>
               </div>
             </Link>
@@ -109,7 +139,7 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
         })}
         {patients.length === 0 && (
           <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center' }}>
-            No hay pacientes en las categorías elegidas.
+            {debtorsOnly ? 'Sin deudores 🙌' : 'No hay pacientes en las categorías elegidas.'}
           </p>
         )}
       </div>

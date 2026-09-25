@@ -19,4 +19,5 @@ export async function registerPayment(appointmentId, amount, method) {
     .eq('id', appointmentId);
   revalidatePath('/analisis');
   revalidatePath('/agenda');
+  revalidatePath('/pacientes');
 }

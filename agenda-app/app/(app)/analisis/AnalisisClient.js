@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, AreaChart, Area,
 } from 'recharts';
-import { registerPayment } from './actions';
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -14,7 +14,7 @@ const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'se
 function pad(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 
-export default function AnalisisClient({ appointments, activeCount, allDebts, events }) {
+export default function AnalisisClient({ appointments, activeCount, events }) {
   const [period, setPeriod] = useState('month');
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -23,27 +23,6 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
   const [sortAsc, setSortAsc] = useState(false);
 
   const today = new Date();
-
-  const [debtPending, startDebtTransition] = useTransition();
-  const [openDebtId, setOpenDebtId] = useState(null);
-  const [openDebtorKey, setOpenDebtorKey] = useState(null);
-  const [payAmount, setPayAmount] = useState('');
-  const [payMethod, setPayMethod] = useState('transfer');
-  const [localDebts, setLocalDebts] = useState(allDebts);
-
-  const debtorGroups = useMemo(() => {
-    const groups = {};
-    localDebts.forEach((d) => {
-      const key = d.patient_id || (d.patients ? `${d.patients.first_name}-${d.patients.last_name}` : 'sin-nombre');
-      const name = d.patients ? `${d.patients.first_name} ${d.patients.last_name || ''}`.trim() : 'Sin nombre';
-      if (!groups[key]) groups[key] = { key, name, items: [], total: 0 };
-      groups[key].items.push(d);
-      groups[key].total += (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
-    });
-    return Object.values(groups)
-      .map((g) => ({ ...g, items: g.items.sort((a, b) => a.date.localeCompare(b.date)) }))
-      .sort((a, b) => b.total - a.total);
-  }, [localDebts]);
 
   const [projectionOffset, setProjectionOffset] = useState(0);
 
@@ -58,22 +37,6 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
       .reduce((s, a) => s + (Number(a.price) || 0), 0);
     return { label: `${MONTH_SHORT[m]} ${y}`, total };
   }, [appointments, projectionOffset]);
-
-  function remaining(d) {
-    return (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
-  }
-
-  function handleRegisterPayment(debt) {
-    const amount = parseFloat(payAmount) || 0;
-    if (amount <= 0) return;
-    setLocalDebts((prev) => {
-      const updated = prev.map((d) => (d.id === debt.id ? { ...d, amount_paid: (Number(d.amount_paid) || 0) + amount } : d));
-      return updated.filter((d) => remaining(d) > 0.01);
-    });
-    startDebtTransition(() => registerPayment(debt.id, amount, payMethod));
-    setOpenDebtId(null);
-    setPayAmount('');
-  }
 
   const { from, to } = useMemo(() => {
     const y = today.getFullYear(), m = today.getMonth();
@@ -199,8 +162,6 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
     if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(false); }
   }
   const arrow = (col) => (sortCol === col ? (sortAsc ? '↑' : '↓') : '');
-
-  const debtors = stats.byPatient.filter((p) => p.debt > 0).sort((a, b) => b.debt - a.debt);
 
   const eventsInPeriod = useMemo(() => {
     const list = events.filter((e) => e.date >= from && e.date <= to);
@@ -360,69 +321,21 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
         )}
       </div>
 
-      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
-          Deudores (a la fecha de hoy)
-        </div>
-        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '0 0 10px' }}>
-          Esta lista muestra toda la deuda pendiente, sin importar el período elegido arriba.
-        </p>
-        {localDebts.length === 0 ? (
-          <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin deudores 🙌</p>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {debtorGroups.map((group) => {
-              const isOpen = openDebtorKey === group.key;
-              return (
-                <div key={group.key} className="card" style={{ padding: 10, border: '1px solid var(--border)' }}>
-                  <div
-                    onClick={() => setOpenDebtorKey(isOpen ? null : group.key)}
-                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, cursor: 'pointer' }}
-                  >
-                    <span>{group.name} <span style={{ color: 'var(--text-lt)', fontSize: 11 }}>· {group.items.length} sesión{group.items.length !== 1 ? 'es' : ''}</span></span>
-                    <strong style={{ color: 'var(--amber)' }}>{fmt$(group.total)}</strong>
-                  </div>
-                  {isOpen && (
-                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {group.items.map((d) => {
-                        const rem = remaining(d);
-                        const isOpenPay = openDebtId === d.id;
-                        return (
-                          <div key={d.id}>
-                            <div
-                              onClick={() => { setOpenDebtId(isOpenPay ? null : d.id); setPayAmount(rem.toString()); }}
-                              style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, cursor: 'pointer' }}
-                            >
-                              <span style={{ color: 'var(--text-md)' }}>{d.date}</span>
-                              <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
-                            </div>
-                            {isOpenPay && (
-                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                                <input
-                                  type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                                  style={{ flex: 1, minWidth: 90, padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}
-                                />
-                                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-                                  style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }}>
-                                  <option value="transfer">Transferencia</option>
-                                  <option value="cash">Efectivo</option>
-                                </select>
-                                <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }} onClick={() => handleRegisterPayment(d)} disabled={debtPending}>
-                                  Registrar pago
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+      <Link
+        href="/pacientes?statuses=active&debtors=1"
+        className="card pressable"
+        style={{ padding: 16, marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--amber-tint)' }}
+      >
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
+            Deudores
           </div>
-        )}
-      </div>
+          <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: 0 }}>
+            Ver el detalle y registrar pagos ahora se hace desde la ficha de cada paciente, en Pacientes.
+          </p>
+        </div>
+        <span style={{ fontSize: 20, color: 'var(--text-lt)', flex: 'none', marginLeft: 12 }}>›</span>
+      </Link>
 
       <div className="card" style={{ padding: 16, overflowX: 'auto' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>

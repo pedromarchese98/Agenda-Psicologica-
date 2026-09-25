@@ -8,29 +8,45 @@ export default async function PacientesPage({ searchParams }) {
   const selectedId = searchParams?.id;
   const statuses = (searchParams?.statuses || 'active').split(',').filter(Boolean);
   const q = searchParams?.q || '';
+  const debtorsOnly = searchParams?.debtors === '1';
 
   const { data: allPatients } = await supabase.from('patients').select('*').order('first_name', { ascending: true });
 
   // Última sesión + modalidad + precio actuales, para mostrar en la lista y en el checklist de precios.
   let infoByPatient = {};
+  // Deuda total por paciente (turnos con payment='unpaid'), para el filtro "Deudores".
+  let debtByPatient = {};
   if (allPatients && allPatients.length > 0) {
-    const { data: appts } = await supabase
-      .from('appointments')
-      .select('patient_id, date, modality, price')
-      .eq('type', 'patient')
-      .in('patient_id', allPatients.map((p) => p.id))
-      .order('date', { ascending: false });
+    const [{ data: appts }, { data: unpaid }] = await Promise.all([
+      supabase
+        .from('appointments')
+        .select('patient_id, date, modality, price')
+        .eq('type', 'patient')
+        .in('patient_id', allPatients.map((p) => p.id))
+        .order('date', { ascending: false }),
+      supabase
+        .from('appointments')
+        .select('patient_id, price, amount_paid')
+        .eq('type', 'patient')
+        .eq('payment', 'unpaid')
+        .in('patient_id', allPatients.map((p) => p.id)),
+    ]);
     (appts || []).forEach((a) => {
       if (!infoByPatient[a.patient_id]) {
         infoByPatient[a.patient_id] = { lastVisit: a.date, modality: a.modality, price: a.price };
       }
     });
+    (unpaid || []).forEach((a) => {
+      debtByPatient[a.patient_id] = (debtByPatient[a.patient_id] || 0) + ((Number(a.price) || 0) - (Number(a.amount_paid) || 0));
+    });
   }
 
   const counts = {};
   (allPatients || []).forEach((p) => { counts[p.status] = (counts[p.status] || 0) + 1; });
+  const debtorsCount = Object.values(debtByPatient).filter((d) => d > 0).length;
 
   const filtered = (allPatients || []).filter((p) => {
+    if (debtorsOnly) return (debtByPatient[p.id] || 0) > 0;
     if (!statuses.includes(p.status)) return false;
     if (q.trim() && !`${p.first_name} ${p.last_name || ''}`.toLowerCase().includes(q.trim().toLowerCase())) return false;
     return true;
@@ -57,9 +73,12 @@ export default async function PacientesPage({ searchParams }) {
 
     const nextVirtual = [...upcoming].find((a) => a.modality === 'virtual') || [...past].reverse().find((a) => a.modality === 'virtual');
     const nextPresencial = [...upcoming].find((a) => a.modality === 'presencial') || [...past].reverse().find((a) => a.modality === 'presencial');
+    const pendingPayments = (allAppts || [])
+      .filter((a) => a.payment === 'unpaid')
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     detail = {
-      patient, notes: notes || [], upcoming,
+      patient, notes: notes || [], upcoming, pendingPayments,
       stats: { total, attended, cancelled, paid, debt, attendanceRate },
       priceVirtual: nextVirtual?.price ?? null,
       pricePresencial: nextPresencial?.price ?? null,
@@ -76,6 +95,9 @@ export default async function PacientesPage({ searchParams }) {
         patients={filtered}
         allPatientsForBulk={allPatients || []}
         infoByPatient={infoByPatient}
+        debtByPatient={debtByPatient}
+        debtorsCount={debtorsCount}
+        debtorsOnly={debtorsOnly}
       />
 
       {detail && (
@@ -83,6 +105,7 @@ export default async function PacientesPage({ searchParams }) {
           <PatientDetail
             patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats}
             priceVirtual={detail.priceVirtual} pricePresencial={detail.pricePresencial}
+            pendingPayments={detail.pendingPayments}
           />
         </PatientDetailModal>
       )}

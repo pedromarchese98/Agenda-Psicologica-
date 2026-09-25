@@ -6,8 +6,8 @@ import { Check, Calendar, User, Clock3, Repeat, DollarSign } from 'lucide-react'
 import { completeOnboarding, skipOnboarding } from './actions';
 
 const DAYS = [
-  { key: 0, label: 'Lunes' }, { key: 1, label: 'Martes' }, { key: 2, label: 'Miércoles' },
-  { key: 3, label: 'Jueves' }, { key: 4, label: 'Viernes' }, { key: 5, label: 'Sábado' }, { key: 6, label: 'Domingo' },
+  { key: 0, label: 'Lunes', short: 'L' }, { key: 1, label: 'Martes', short: 'M' }, { key: 2, label: 'Miércoles', short: 'X' },
+  { key: 3, label: 'Jueves', short: 'J' }, { key: 4, label: 'Viernes', short: 'V' }, { key: 5, label: 'Sábado', short: 'S' }, { key: 6, label: 'Domingo', short: 'D' },
 ];
 
 const TOUR_STEPS = [
@@ -77,24 +77,28 @@ export default function OnboardingWizard() {
             <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 14, margin: '0 0 22px' }}>
               Elegí los días que vas a usar en tu agenda. El resto los vamos a bloquear automáticamente para que no aparezcan.
             </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 26 }}>
+            <div style={{ display: 'flex', gap: 7, marginBottom: 12 }}>
               {DAYS.map((d) => (
                 <button
                   key={d.key}
                   onClick={() => toggleDay(d.key)}
                   className="pressable"
+                  aria-label={d.label}
+                  title={d.label}
                   style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px',
-                    borderRadius: 10, border: '1px solid rgba(255,255,255,.15)',
+                    flex: 1, aspectRatio: '1', borderRadius: '50%', border: '1px solid rgba(255,255,255,.15)',
                     background: days.includes(d.key) ? 'var(--teal)' : 'rgba(255,255,255,.05)',
-                    color: days.includes(d.key) ? 'var(--navy)' : '#fff', fontWeight: 700, fontSize: 14,
+                    color: days.includes(d.key) ? 'var(--navy)' : '#fff', fontWeight: 700, fontSize: 13,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  {d.label}
-                  {days.includes(d.key) && <Check size={16} />}
+                  {d.short}
                 </button>
               ))}
             </div>
+            <p style={{ color: 'var(--teal)', fontSize: 12.5, fontWeight: 700, margin: '0 0 26px' }}>
+              {days.length} día{days.length !== 1 ? 's' : ''} seleccionado{days.length !== 1 ? 's' : ''}
+            </p>
             <button
               onClick={() => setStep('hours')}
               disabled={days.length === 0}
@@ -132,6 +136,9 @@ export default function OnboardingWizard() {
                 </select>
               </div>
             </div>
+            <div style={{ background: 'rgba(62,207,178,.08)', border: '1px solid rgba(62,207,178,.25)', borderRadius: 10, padding: '11px 13px', marginBottom: 22, fontSize: 12.5, color: 'rgba(255,255,255,.75)', lineHeight: 1.5 }}>
+              Vamos a bloquear todo lo anterior a las {String(hourStart).padStart(2, '0')}:00 y posterior a las {String(hourEnd).padStart(2, '0')}:00, en los días que elegiste. Esto lo podés cambiar cuando quieras desde Perfil.
+            </div>
             <button onClick={handleConfirmHours} className="btn btn-primary pressable" style={{ width: '100%' }}>
               Confirmar y armar mi agenda
             </button>
@@ -142,8 +149,19 @@ export default function OnboardingWizard() {
         )}
 
         {step === 'saving' && (
-          <div style={{ textAlign: 'center' }}>
-            <p style={{ color: 'rgba(255,255,255,.7)', fontSize: 14 }}>Armando tu agenda…</p>
+          <div style={{ textAlign: 'center', maxWidth: 320, margin: '0 auto' }}>
+            <div
+              style={{
+                width: 40, height: 40, margin: '0 auto 20px', borderRadius: '50%',
+                border: '3px solid rgba(62,207,178,.2)', borderTopColor: 'var(--teal)',
+                animation: 'onboardSpin 0.8s linear infinite',
+              }}
+            />
+            <style>{'@keyframes onboardSpin { to { transform: rotate(360deg); } }'}</style>
+            <h2 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>Armando tu agenda</h2>
+            <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+              Estamos bloqueando los horarios fuera de tu disponibilidad para los próximos 180 días. Esto tarda unos segundos.
+            </p>
           </div>
         )}
 
@@ -170,13 +188,29 @@ export default function OnboardingWizard() {
                 <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i <= tourIndex ? 'var(--teal)' : 'rgba(255,255,255,.15)' }} />
               ))}
             </div>
-            <button
-              onClick={() => (tourIndex < TOUR_STEPS.length - 1 ? setTourIndex((v) => v + 1) : finishTour())}
-              className="btn btn-primary pressable"
-              style={{ width: '100%' }}
-            >
-              {tourIndex < TOUR_STEPS.length - 1 ? 'Siguiente' : 'Empezar a usar la agenda'}
-            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {tourIndex > 0 && (
+                <button
+                  onClick={() => setTourIndex((v) => v - 1)}
+                  className="btn pressable"
+                  style={{ background: 'rgba(255,255,255,.08)', color: '#fff' }}
+                >
+                  ‹ Atrás
+                </button>
+              )}
+              <button
+                onClick={() => (tourIndex < TOUR_STEPS.length - 1 ? setTourIndex((v) => v + 1) : finishTour())}
+                className="btn btn-primary pressable"
+                style={{ flex: 1 }}
+              >
+                {tourIndex < TOUR_STEPS.length - 1 ? 'Siguiente' : 'Empezar a usar la agenda'}
+              </button>
+            </div>
+            {tourIndex < TOUR_STEPS.length - 1 && (
+              <button onClick={finishTour} className="pressable" style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: 'rgba(255,255,255,.45)', fontSize: 12 }}>
+                Saltear el recorrido
+              </button>
+            )}
           </div>
         )}
       </div>

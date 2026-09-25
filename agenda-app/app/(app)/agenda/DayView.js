@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, User, Pin, Ban, Laptop, Home } from 'lucide-react';
+import { Plus, User, Pin, Ban, Laptop, Home, HelpCircle, X } from 'lucide-react';
 import HourList from './HourList';
 import { createAppointment, rescheduleAppointment } from './actions';
 import { useDragReschedule } from './useDragReschedule';
@@ -12,6 +12,39 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+const GUIDE_SEEN_KEY = 'firstApptGuideSeen';
+
+function HelpBubble({ show, num, title, text }) {
+  if (!show) return null;
+  return (
+    <div style={{ position: 'relative', marginTop: -4 }}>
+      <span
+        style={{
+          position: 'absolute', top: -6, left: 18, width: 10, height: 10,
+          background: 'var(--teal-tint)', borderLeft: '1px solid var(--teal)', borderTop: '1px solid var(--teal)',
+          transform: 'rotate(45deg)',
+        }}
+      />
+      <div
+        style={{
+          display: 'flex', gap: 8, background: 'var(--teal-tint)', border: '1px solid var(--teal)',
+          borderRadius: 10, padding: '9px 11px', fontSize: 12, lineHeight: 1.5, color: 'var(--navy)',
+        }}
+      >
+        <span style={{
+          flex: 'none', width: 16, height: 16, borderRadius: '50%', background: 'var(--teal-dk)', color: '#fff',
+          fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1,
+        }}>
+          {num}
+        </span>
+        <span>
+          <strong>{title}.</strong> {text}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function DayView({ dateStr, appointments, blocks, others, patients }) {
   const [modalTime, setModalTime] = useState(null);
   const [closing, setClosing] = useState(false);
@@ -19,6 +52,7 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
   const [eventIsPaid, setEventIsPaid] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [localAppts, setLocalAppts] = useState(appointments);
+  const [guideOn, setGuideOn] = useState(false);
 
   useEffect(() => setMounted(true), []);
   useEffect(() => setLocalAppts(appointments), [appointments]);
@@ -27,6 +61,14 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
     setFormType('patient');
     setEventIsPaid(false);
     setModalTime(time);
+    try {
+      if (!localStorage.getItem(GUIDE_SEEN_KEY)) {
+        setGuideOn(true);
+        localStorage.setItem(GUIDE_SEEN_KEY, '1');
+      }
+    } catch (e) {
+      /* localStorage no disponible */
+    }
   }
   function close() {
     setClosing(true);
@@ -83,7 +125,27 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
         }}
       >
         <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 2, margin: '4px auto' }} />
-        <h3 style={{ margin: 0, fontSize: 16 }}>Nuevo</h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h3 style={{ margin: 0, fontSize: 16 }}>Nuevo</h3>
+          <button
+            type="button"
+            onClick={() => setGuideOn((v) => !v)}
+            className="pressable"
+            aria-label={guideOn ? 'Ocultar ayuda' : 'Mostrar ayuda'}
+            style={{
+              width: 26, height: 26, borderRadius: '50%', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: guideOn ? 'var(--teal)' : 'var(--muted)', color: guideOn ? 'var(--navy)' : 'var(--text-lt)',
+            }}
+          >
+            {guideOn ? <X size={14} /> : <HelpCircle size={15} />}
+          </button>
+        </div>
+        {guideOn && (
+          <p style={{ fontSize: 11.5, color: 'var(--text-lt)', margin: '-6px 0 2px' }}>
+            Guía rápida activada — tocá el ✕ de arriba para ocultarla.
+          </p>
+        )}
 
         <select name="type" value={formType} onChange={(e) => setFormType(e.target.value)}
           style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}>
@@ -91,6 +153,10 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
           <option value="other">Evento (reunión, colegio, etc.)</option>
           <option value="block">Bloquear horario</option>
         </select>
+        <HelpBubble
+          show={guideOn} num={1} title="Qué se está agendando"
+          text="Paciente inicia una sesión clínica. Evento es una reunión, llamada o compromiso que no representa un nuevo paciente. Bloqueo cierra un horario sin ocuparlo."
+        />
 
         {formType === 'patient' && (
           <>
@@ -101,6 +167,10 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
                 <option key={p.id} value={`${p.first_name}${p.last_name ? ' ' + p.last_name : ''}`} />
               ))}
             </datalist>
+            <HelpBubble
+              show={guideOn} num={2} title="Buscar o crear"
+              text="Empezá a escribir el nombre: si el paciente ya existe aparece para elegirlo, y si no, se crea uno nuevo en el momento sin salir de esta pantalla."
+            />
           </>
         )}
 
@@ -125,6 +195,10 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
           <input name="time" type="time" defaultValue={modalTime} required
             style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
         </div>
+        <HelpBubble
+          show={guideOn} num={3} title="Se completa solo"
+          text="Si abriste el formulario tocando un horario libre en la agenda, la fecha y hora ya vienen cargadas — igual podés cambiarlas acá."
+        />
 
         {formType === 'patient' && (
           <>
@@ -137,6 +211,14 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
               <input name="price" type="number" placeholder="Precio" required
                 style={{ flex: 1, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }} />
             </div>
+            <HelpBubble
+              show={guideOn} num={4} title="Define el precio sugerido"
+              text="Cada modalidad tiene su propio precio guardado en el perfil del paciente. Al elegirla, el campo de precio se autocompleta solo."
+            />
+            <HelpBubble
+              show={guideOn} num={5} title="Editable en el momento"
+              text="El monto viene precargado pero es solo una sugerencia — se puede editar para esta sesión puntual sin afectar el precio general del paciente."
+            />
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)', display: 'block', marginBottom: 4 }}>Frecuencia</label>
               <select name="repeat" defaultValue="once"
@@ -146,9 +228,17 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
                 <option value="biweekly">Quincenal (1 año)</option>
               </select>
             </div>
+            <HelpBubble
+              show={guideOn} num={6} title="Crea la serie completa"
+              text="Elegir Semanal o Quincenal genera automáticamente los próximos turnos con ese mismo día y horario — no hace falta cargarlos uno por uno."
+            />
           </>
         )}
 
+        <HelpBubble
+          show={guideOn} num={7} title="Última red de seguridad"
+          text="Antes de guardar, la app revisa que no haya dos turnos pisándose en el mismo horario y te lo advierte si pasa."
+        />
         <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
           <button type="button" className="btn btn-secondary pressable" style={{ flex: 1 }} onClick={close}>Cancelar</button>
           <button type="submit" className="btn btn-primary pressable" style={{ flex: 1 }}>Guardar</button>
