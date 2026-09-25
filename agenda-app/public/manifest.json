@@ -1,6 +1,6 @@
 {
-  "name": "Agenda Psicológica",
-  "short_name": "Agenda",
+  "name": "PsicoCalendar",
+  "short_name": "PsicoCalendar",
   "start_url": "/agenda",
   "display": "standalone",
   "background_color": "#0F1729",

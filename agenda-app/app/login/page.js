@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Brain } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { APP_NAME, LogoIcon } from '@/lib/brand';
 
 export default function LoginPage() {
   return (
@@ -113,10 +113,10 @@ function LoginInner() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
         }}
       >
-        <Brain size={26} color="var(--teal)" strokeWidth={2} />
+        <LogoIcon size={26} color="var(--teal)" strokeWidth={2} />
       </div>
       <h1 style={{ color: '#fff', fontSize: 18, fontWeight: 800, marginBottom: 28, letterSpacing: '-0.01em' }}>
-        Agenda Psicológica
+        {APP_NAME}
       </h1>
 
       {mode === 'login' ? (

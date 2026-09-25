@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 export const runtime = 'edge';
-export const alt = 'Agenda Psicológica';
+export const alt = 'PsicoCalendar';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -34,7 +34,7 @@ export default async function Image() {
         >
           <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#3ECFB2' }} />
         </div>
-        <div style={{ color: '#fff', fontSize: 60, fontWeight: 800, letterSpacing: -1 }}>Agenda Psicológica</div>
+        <div style={{ color: '#fff', fontSize: 60, fontWeight: 800, letterSpacing: -1 }}>PsicoCalendar</div>
         <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 28 }}>Hecha por y para psicólogos</div>
       </div>
     ),

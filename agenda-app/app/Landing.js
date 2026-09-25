@@ -6,6 +6,7 @@ import {
   Check, Sparkles,
 } from 'lucide-react';
 import { useReveal } from './useReveal';
+import { APP_NAME, LogoIcon } from '@/lib/brand';
 
 function Reveal({ children, delay, className = '', style }) {
   const { ref, inView } = useReveal();
@@ -201,9 +202,9 @@ export default function Landing() {
               width: 28, height: 28, borderRadius: 8, flex: 'none',
               background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <Calendar size={15} color="var(--teal)" />
+              <LogoIcon size={15} color="var(--teal)" />
             </span>
-            Agenda Psicológica
+            {APP_NAME}
           </span>
           <div style={{ display: 'flex', gap: 8 }}>
             <Link href="/login" className="btn btn-secondary pressable" style={{ fontSize: 13 }}>Iniciar sesión</Link>
@@ -322,7 +323,7 @@ export default function Landing() {
       </section>
 
       <footer className="l-wrap" style={{ padding: '24px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--text-lt)' }}>
-        <span>© {new Date().getFullYear()} Agenda Psicológica</span>
+        <span>© {new Date().getFullYear()} {APP_NAME}</span>
         <span>Hecha por y para psicólogos</span>
       </footer>
     </div>

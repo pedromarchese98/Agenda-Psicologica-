@@ -5,12 +5,12 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const mono = JetBrains_Mono({ subsets: ['latin'], weight: ['500', '600', '700'], variable: '--font-mono' });
 
 export const metadata = {
-  title: 'Agenda Psicológica',
+  title: 'PsicoCalendar',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Agenda',
+    title: 'PsicoCalendar',
   },
 };
 

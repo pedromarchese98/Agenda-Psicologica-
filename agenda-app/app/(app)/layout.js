@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { Brain, Calendar, CalendarClock, Users, BarChart3, Settings, LogOut } from 'lucide-react';
+import { Calendar, CalendarClock, Users, BarChart3, Settings, LogOut } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { APP_NAME, LogoIcon } from '@/lib/brand';
 
 const TABS = [
   { href: '/agenda', label: 'Agenda', icon: Calendar },
@@ -20,6 +21,7 @@ export default function AppLayout({ children }) {
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [navHidden, setNavHidden] = useState(false);
   const menuRef = useRef(null);
@@ -27,7 +29,17 @@ export default function AppLayout({ children }) {
   const lastScrollRef = useRef(0);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email || ''));
+    supabase.auth.getUser().then(({ data }) => {
+      setEmail(data?.user?.email || '');
+      setAvatarUrl(data?.user?.user_metadata?.avatar_url || '');
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'USER_UPDATED' && session?.user) {
+        setEmail(session.user.email || '');
+        setAvatarUrl(session.user.user_metadata?.avatar_url || '');
+      }
+    });
+    return () => sub?.subscription?.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -88,7 +100,7 @@ export default function AppLayout({ children }) {
         }}
       >
         <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Brain size={18} color="var(--teal)" strokeWidth={2} /> Agenda Psicológica
+          <LogoIcon size={18} color="var(--teal)" strokeWidth={2} /> {APP_NAME}
         </span>
 
         <div ref={menuRef} style={{ position: 'relative' }}>
@@ -96,12 +108,13 @@ export default function AppLayout({ children }) {
             onClick={() => setMenuOpen((v) => !v)}
             className="pressable"
             style={{
-              width: 30, height: 30, borderRadius: '50%', background: 'var(--teal)', color: 'var(--navy)',
+              width: 30, height: 30, borderRadius: '50%', background: avatarUrl ? 'var(--muted)' : 'var(--teal)', color: 'var(--navy)',
               border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+              backgroundImage: avatarUrl ? `url(${avatarUrl})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center',
             }}
             aria-label="Cuenta"
           >
-            {initial}
+            {!avatarUrl && initial}
           </button>
 
           {menuOpen && (

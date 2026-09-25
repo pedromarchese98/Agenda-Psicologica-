@@ -18,7 +18,7 @@ export default async function DisponiblesPage() {
 
   const { data: weekAppts } = await supabase
     .from('appointments')
-    .select('id, date, time, type, attendance')
+    .select('id, date, time, type, attendance, title, block_note, block_recurring')
     .gte('date', todayKey).lte('date', toDateStr(windowEnd))
     .in('type', ['patient', 'other', 'block']);
 
@@ -43,7 +43,13 @@ export default async function DisponiblesPage() {
       const blockRow = inHour.find((a) => a.type === 'block');
       // Un turno tipo "patient" cancelado (no-free) no cuenta como ocupado: el horario queda libre.
       const isOccupied = inHour.some((a) => (a.type === 'patient' && a.attendance !== 'no-free') || a.type === 'other');
-      if (blockRow) blockedSlots.push({ time: `${hStr}:00`, id: blockRow.id });
+      if (blockRow) {
+        blockedSlots.push({
+          time: `${hStr}:00`, id: blockRow.id,
+          reason: blockRow.title || 'Bloqueado', note: blockRow.block_note || null,
+          recurring: !!blockRow.block_recurring,
+        });
+      }
       else if (!isOccupied) freeSlots.push(`${hStr}:00`);
     }
     days.push({ key, day: cur.getDate(), month: cur.getMonth() + 1, weekday: cur.getDay(), freeSlots, blockedSlots });

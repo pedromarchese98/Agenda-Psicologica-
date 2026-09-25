@@ -49,10 +49,28 @@ export async function createAppointment(formData) {
   if (!date || !time) return;
 
   if (type === 'block') {
-    await supabase.from('appointments').insert({
-      owner_id: user.id, type: 'block', date, time, attendance: 'pending', payment: 'na',
-    });
+    const reason = formData.get('reason')?.toString().trim() || null;
+    const note = formData.get('note')?.toString().trim() || null;
+    const recurring = formData.get('recurring') === 'on';
+
+    const count = recurring ? 52 : 1;
+    const base = new Date(date + 'T00:00:00');
+    const rows = [];
+    for (let i = 0; i < count; i++) {
+      const cur = new Date(base);
+      cur.setDate(base.getDate() + i * 7);
+      const y = cur.getFullYear();
+      const m = String(cur.getMonth() + 1).padStart(2, '0');
+      const d2 = String(cur.getDate()).padStart(2, '0');
+      rows.push({
+        owner_id: user.id, type: 'block', date: `${y}-${m}-${d2}`, time,
+        attendance: 'pending', payment: 'na',
+        title: reason, block_note: note, block_recurring: recurring,
+      });
+    }
+    await supabase.from('appointments').insert(rows);
     revalidatePath('/agenda');
+    revalidatePath('/disponibles');
     return;
   }
 

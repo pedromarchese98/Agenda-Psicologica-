@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, User, Pin, Ban, Laptop, Home, HelpCircle, X } from 'lucide-react';
 import HourList from './HourList';
+import BlockReasonFields from './BlockReasonFields';
 import { createAppointment, rescheduleAppointment } from './actions';
 import { useDragReschedule } from './useDragReschedule';
 import { timeToMinutes, rangesOverlap } from './scheduling';
@@ -199,6 +200,8 @@ export default function DayView({ dateStr, appointments, blocks, others, patient
           show={guideOn} num={3} title="Se completa solo"
           text="Si abriste el formulario tocando un horario libre en la agenda, la fecha y hora ya vienen cargadas — igual podés cambiarlas acá."
         />
+
+        {formType === 'block' && <BlockReasonFields />}
 
         {formType === 'patient' && (
           <>
