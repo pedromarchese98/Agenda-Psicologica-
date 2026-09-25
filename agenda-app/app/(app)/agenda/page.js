@@ -5,6 +5,7 @@ import WeekView from './WeekView';
 import MonthView from './MonthView';
 import SwipeDayNav from './SwipeDayNav';
 import OnboardingWizard from '../onboarding/OnboardingWizard';
+import { getHolidays } from './holidays';
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -133,7 +134,9 @@ export default async function AgendaPage({ searchParams }) {
     }
     if (week.length) { while (week.length < 5) week.push(null); weeks.push(week); }
 
-    body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} />;
+    const holidaysByDate = await getHolidays(y);
+
+    body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} holidaysByDate={holidaysByDate} />;
   }
 
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
