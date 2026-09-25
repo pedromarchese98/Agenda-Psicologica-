@@ -1,21 +1,20 @@
 import { createClient } from '@/lib/supabase/server';
 import PatientDetail from './PatientDetail';
-import PatientDetailModal from './PatientDetailModal';
-import PatientsBoard from './PatientsBoard';
+import PacientesClient from './PacientesClient';
 
 export default async function PacientesPage({ searchParams }) {
   const supabase = createClient();
   const selectedId = searchParams?.id;
   const statuses = (searchParams?.statuses || 'active').split(',').filter(Boolean);
   const q = searchParams?.q || '';
-  const debtorsOnly = searchParams?.debtors === '1';
+  const debtorsParam = searchParams?.debtors === '1';
 
   const { data: allPatients } = await supabase.from('patients').select('*').order('first_name', { ascending: true });
 
   // Última sesión + modalidad + precio actuales, para mostrar en la lista y en el checklist de precios.
   let infoByPatient = {};
-  // Deuda total por paciente (turnos con payment='unpaid'), para el filtro "Deudores".
-  let debtByPatient = {};
+  // Turnos impagos por paciente, para armar la pestaña "Deudores" (detalle sesión por sesión).
+  let debtItemsByPatient = {};
   if (allPatients && allPatients.length > 0) {
     const [{ data: appts }, { data: unpaid }] = await Promise.all([
       supabase
@@ -26,10 +25,11 @@ export default async function PacientesPage({ searchParams }) {
         .order('date', { ascending: false }),
       supabase
         .from('appointments')
-        .select('patient_id, price, amount_paid')
+        .select('id, patient_id, date, time, price, amount_paid')
         .eq('type', 'patient')
         .eq('payment', 'unpaid')
-        .in('patient_id', allPatients.map((p) => p.id)),
+        .in('patient_id', allPatients.map((p) => p.id))
+        .order('date', { ascending: true }),
     ]);
     (appts || []).forEach((a) => {
       if (!infoByPatient[a.patient_id]) {
@@ -37,16 +37,40 @@ export default async function PacientesPage({ searchParams }) {
       }
     });
     (unpaid || []).forEach((a) => {
-      debtByPatient[a.patient_id] = (debtByPatient[a.patient_id] || 0) + ((Number(a.price) || 0) - (Number(a.amount_paid) || 0));
+      if (!debtItemsByPatient[a.patient_id]) debtItemsByPatient[a.patient_id] = [];
+      debtItemsByPatient[a.patient_id].push(a);
     });
   }
 
   const counts = {};
   (allPatients || []).forEach((p) => { counts[p.status] = (counts[p.status] || 0) + 1; });
-  const debtorsCount = Object.values(debtByPatient).filter((d) => d > 0).length;
+
+  const debtByPatient = {};
+  Object.entries(debtItemsByPatient).forEach(([pid, items]) => {
+    debtByPatient[pid] = items.reduce((s, a) => s + ((Number(a.price) || 0) - (Number(a.amount_paid) || 0)), 0);
+  });
+  const debtorsCount = Object.values(debtByPatient).filter((d) => d > 0.01).length;
+
+  // Lista de deudores con el detalle de cada sesión adeudada, para la pestaña "Deudores".
+  const patientById = {};
+  (allPatients || []).forEach((p) => { patientById[p.id] = p; });
+  const debtorsList = Object.entries(debtItemsByPatient)
+    .map(([pid, items]) => {
+      const p = patientById[pid];
+      if (!p) return null;
+      const total = items.reduce((s, a) => s + ((Number(a.price) || 0) - (Number(a.amount_paid) || 0)), 0);
+      if (total <= 0.01) return null;
+      return {
+        patientId: pid,
+        name: `${p.first_name}${p.last_name ? ' ' + p.last_name : ''}`,
+        items: items.map((a) => ({ id: a.id, date: a.date, time: a.time, price: a.price, amount_paid: a.amount_paid })),
+        total,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const filtered = (allPatients || []).filter((p) => {
-    if (debtorsOnly) return (debtByPatient[p.id] || 0) > 0;
     if (!statuses.includes(p.status)) return false;
     if (q.trim() && !`${p.first_name} ${p.last_name || ''}`.toLowerCase().includes(q.trim().toLowerCase())) return false;
     return true;
@@ -73,12 +97,9 @@ export default async function PacientesPage({ searchParams }) {
 
     const nextVirtual = [...upcoming].find((a) => a.modality === 'virtual') || [...past].reverse().find((a) => a.modality === 'virtual');
     const nextPresencial = [...upcoming].find((a) => a.modality === 'presencial') || [...past].reverse().find((a) => a.modality === 'presencial');
-    const pendingPayments = (allAppts || [])
-      .filter((a) => a.payment === 'unpaid')
-      .sort((a, b) => a.date.localeCompare(b.date));
 
     detail = {
-      patient, notes: notes || [], upcoming, pendingPayments,
+      patient, notes: notes || [], upcoming,
       stats: { total, attended, cancelled, paid, debt, attendanceRate },
       priceVirtual: nextVirtual?.price ?? null,
       pricePresencial: nextPresencial?.price ?? null,
@@ -86,29 +107,24 @@ export default async function PacientesPage({ searchParams }) {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100dvh - 130px)' }}>
-      <PatientsBoard
-        allCount={(allPatients || []).length}
-        counts={counts}
-        statuses={statuses}
-        q={q}
-        patients={filtered}
-        allPatientsForBulk={allPatients || []}
-        infoByPatient={infoByPatient}
-        debtByPatient={debtByPatient}
-        debtorsCount={debtorsCount}
-        debtorsOnly={debtorsOnly}
-      />
-
-      {detail && (
-        <PatientDetailModal backHref={`/pacientes?statuses=${statuses.join(',')}${q ? `&q=${encodeURIComponent(q)}` : ''}`}>
-          <PatientDetail
-            patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats}
-            priceVirtual={detail.priceVirtual} pricePresencial={detail.pricePresencial}
-            pendingPayments={detail.pendingPayments}
-          />
-        </PatientDetailModal>
+    <PacientesClient
+      counts={counts}
+      statuses={statuses}
+      q={q}
+      patients={filtered}
+      allPatientsForBulk={allPatients || []}
+      infoByPatient={infoByPatient}
+      debtByPatient={debtByPatient}
+      debtorsCount={debtorsCount}
+      debtorsList={debtorsList}
+      initialView={selectedId ? 'ficha' : (debtorsParam ? 'deudores' : 'lista')}
+      detailView={detail && (
+        <PatientDetail
+          patient={detail.patient} notes={detail.notes} upcoming={detail.upcoming} stats={detail.stats}
+          priceVirtual={detail.priceVirtual} pricePresencial={detail.pricePresencial}
+        />
       )}
-    </div>
+      detailId={detail?.patient?.id || null}
+    />
   );
 }

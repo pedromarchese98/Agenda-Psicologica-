@@ -3,7 +3,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePatientStatus, addNote, deleteFutureAppointments, changeFutureSchedule, deletePatient, applyPriceChange } from './actions';
-import { registerPayment } from '../analisis/actions';
+
+const DOW = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 const STATUS = {
   active: { label: 'Activo en tratamiento', badge: 'badge-teal', color: 'var(--teal-dk)' },
@@ -16,19 +17,15 @@ const STATUS = {
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
-export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial, pendingPayments = [] }) {
+export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [payPending, startPayTransition] = useTransition();
-  const [localPending, setLocalPending] = useState(pendingPayments);
-  const [openPayId, setOpenPayId] = useState(null);
-  const [payAmount, setPayAmount] = useState('');
-  const [payMethod, setPayMethod] = useState('transfer');
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
   const [editingModality, setEditingModality] = useState(null); // 'virtual' | 'presencial' | null
   const [priceValue, setPriceValue] = useState(0);
+  const [priceDate, setPriceDate] = useState(todayStr());
   const [freqOpen, setFreqOpen] = useState(false);
   const [freqDate, setFreqDate] = useState(upcoming[0]?.date || todayStr());
   const [freqTime, setFreqTime] = useState(upcoming[0]?.time?.slice(0, 5) || '10:00');
@@ -53,34 +50,17 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
     });
   }
 
-  function todayStr2() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-
   function savePrice() {
     startTransition(async () => {
-      await applyPriceChange([patient.id], parseFloat(priceValue) || 0, todayStr2(), editingModality);
+      await applyPriceChange([patient.id], parseFloat(priceValue) || 0, priceDate, editingModality);
       setEditingModality(null);
       router.refresh();
     });
   }
 
-  function remaining(d) {
-    return (Number(d.price) || 0) - (Number(d.amount_paid) || 0);
-  }
-
-  function handleRegisterPayment(debt) {
-    const amount = parseFloat(payAmount) || 0;
-    if (amount <= 0) return;
-    setLocalPending((prev) => {
-      const updated = prev.map((d) => (d.id === debt.id ? { ...d, amount_paid: (Number(d.amount_paid) || 0) + amount } : d));
-      return updated.filter((d) => remaining(d) > 0.01);
-    });
-    startPayTransition(() => registerPayment(debt.id, amount, payMethod));
-    setOpenPayId(null);
-    setPayAmount('');
-  }
+  const currentSchedule = upcoming[0]
+    ? `${DOW[new Date(upcoming[0].date + 'T00:00:00').getDay()]} · ${upcoming[0].time?.slice(0, 5)}`
+    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
@@ -110,47 +90,6 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
         </div>
       </div>
 
-      {localPending.length > 0 && (
-        <div className="card" style={{ padding: 14, border: '1px solid var(--amber-tint)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--amber)', textTransform: 'uppercase', marginBottom: 10 }}>
-            Pagos pendientes
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {localPending.map((d) => {
-              const rem = remaining(d);
-              const isOpenPay = openPayId === d.id;
-              return (
-                <div key={d.id} style={{ background: 'var(--surface)', borderRadius: 10, padding: '9px 11px' }}>
-                  <div
-                    onClick={() => { setOpenPayId(isOpenPay ? null : d.id); setPayAmount(rem.toString()); }}
-                    style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, cursor: 'pointer' }}
-                  >
-                    <span style={{ color: 'var(--text-md)' }}>{d.date} · {d.time?.slice(0, 5)}</span>
-                    <strong style={{ color: 'var(--amber)' }}>{fmt$(rem)}</strong>
-                  </div>
-                  {isOpenPay && (
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
-                      <input
-                        type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)}
-                        style={{ flex: 1, minWidth: 90, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}
-                      />
-                      <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-                        style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }}>
-                        <option value="transfer">Transferencia</option>
-                        <option value="cash">Efectivo</option>
-                      </select>
-                      <button className="btn btn-primary pressable" style={{ fontSize: 12, padding: '8px 11px' }} onClick={() => handleRegisterPayment(d)} disabled={payPending}>
-                        Registrar pago
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <div className="card" style={{ padding: 14 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
           Precio de sesión
@@ -166,25 +105,40 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
                   <span style={{ fontSize: 13, color: 'var(--text-md)', fontWeight: 600 }}>{label}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 17, fontWeight: 800 }}>{price != null ? fmt$(price) : '—'}</span>
-                    <button onClick={() => { setPriceValue(price || 0); setEditingModality(key); }} className="btn btn-secondary pressable" style={{ fontSize: 11, padding: '5px 9px' }}>
+                    <button onClick={() => { setPriceValue(price || 0); setPriceDate(todayStr()); setEditingModality(key); }} className="btn btn-secondary pressable" style={{ fontSize: 11, padding: '5px 9px' }}>
                       Editar
                     </button>
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-md)', width: 70 }}>{label}</span>
-                  <input type="number" value={priceValue} onChange={(e) => setPriceValue(e.target.value)}
-                    style={{ flex: 1, padding: 9, borderRadius: 8, border: '1px solid var(--border)' }} autoFocus />
-                  <button onClick={savePrice} className="btn btn-primary pressable" style={{ fontSize: 12 }} disabled={isPending}>Guardar</button>
-                  <button onClick={() => setEditingModality(null)} className="btn btn-secondary pressable" style={{ fontSize: 12 }}>Cancelar</button>
+                <div style={{ background: 'var(--surface)', borderRadius: 10, padding: 12, marginTop: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 8 }}>Nuevo precio {label.toLowerCase()}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <label>
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 4 }}>Monto</span>
+                      <input type="number" value={priceValue} onChange={(e) => setPriceValue(e.target.value)}
+                        style={{ width: '100%', padding: 9, borderRadius: 8, border: '1px solid var(--border)', fontFamily: 'var(--font-mono, monospace)' }} autoFocus />
+                    </label>
+                    <label>
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 4 }}>Vigente desde</span>
+                      <input type="date" value={priceDate} onChange={(e) => setPriceDate(e.target.value)}
+                        style={{ width: '100%', padding: 9, borderRadius: 8, border: '1px solid var(--border)', fontFamily: 'var(--font-mono, monospace)' }} />
+                    </label>
+                  </div>
+                  <p style={{ fontSize: 11.5, color: '#8A5A00', background: 'var(--amber-tint)', borderRadius: 8, padding: '9px 10px', margin: '10px 0 0', lineHeight: 1.4 }}>
+                    El nuevo precio se aplica a los turnos <strong>desde esta fecha en adelante</strong>. Los turnos anteriores mantienen su precio.
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <button onClick={() => setEditingModality(null)} className="btn btn-secondary pressable" style={{ flex: 1, fontSize: 12 }}>Cancelar</button>
+                    <button onClick={savePrice} className="btn btn-primary pressable" style={{ flex: 1, fontSize: 12 }} disabled={isPending}>Guardar precio</button>
+                  </div>
                 </div>
               )}
             </div>
           ))}
         </div>
         <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '10px 0 0' }}>
-          Se aplica a los turnos futuros de esa modalidad, desde hoy. Para cambiarlo desde otra fecha o a varios pacientes a la vez, usá el botón "Precios" en la lista de Pacientes.
+          Los cambios de precio rigen desde la fecha que elijas en adelante. Para cambiarlo a varios pacientes a la vez, usá el botón "Precios" en la lista de Pacientes.
         </p>
       </div>
 
@@ -265,6 +219,11 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
           Día, horario y frecuencia
         </div>
+        {currentSchedule && (
+          <p style={{ fontSize: 11.5, color: 'var(--text-lt)', margin: '0 0 10px' }}>
+            Actual: <strong style={{ color: 'var(--text)' }}>{currentSchedule}</strong>
+          </p>
+        )}
         {!freqOpen ? (
           <button onClick={() => setFreqOpen(true)} className="btn btn-secondary pressable" style={{ width: '100%', fontSize: 13 }}>
             🔁 Cambiar día/horario/frecuencia desde una fecha
