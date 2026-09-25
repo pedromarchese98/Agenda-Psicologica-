@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { updateSettings } from './actions';
+import ThemeToggle from './ThemeToggle';
+import ScheduleForm from './ScheduleForm';
 
 export default function PerfilForm({ email, settings }) {
   const supabase = createClient();
@@ -115,6 +117,26 @@ export default function PerfilForm({ email, settings }) {
         <button className="btn btn-primary pressable" style={{ width: '100%' }} onClick={handleSavePrices} disabled={isPending}>
           Guardar precios
         </button>
+      </div>
+
+      <div className="card" style={{ padding: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
+          Apariencia
+        </div>
+        <ThemeToggle />
+        <p style={{ fontSize: 11.5, color: 'var(--text-lt)', margin: '8px 0 0' }}>
+          "Automático" sigue el modo claro/oscuro de tu celular o navegador.
+        </p>
+      </div>
+
+      <div className="card" style={{ padding: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
+          Días y horario de atención
+        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--text-lt)', margin: '0 0 12px' }}>
+          Esto define qué horarios aparecen bloqueados en tu agenda. Los turnos que ya tenés agendados no se ven afectados.
+        </p>
+        <ScheduleForm settings={settings} />
       </div>
     </div>
   );

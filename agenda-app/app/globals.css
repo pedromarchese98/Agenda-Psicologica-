@@ -33,8 +33,57 @@
   --teal-tint: #E7F8F3;
   --navy-soft: #1B2338;
 
+  /* tintes de badges/estados (con versión dark más abajo) */
+  --amber-tint: #FCF1E3;
+  --rose-tint: #FBEAEC;
+  --violet-tint: #F1ECFB;
+  --blue-tint: #E9F0FD;
+  --blue: #3B6FD9;
+
   --safe-top: env(safe-area-inset-top);
   --safe-bottom: env(safe-area-inset-bottom);
+
+  color-scheme: light;
+}
+
+/* ── Modo oscuro: automático (sigue al sistema) o forzado desde Perfil ── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #0B0F1A;
+    --card: #151B29;
+    --text: #F1F1F4;
+    --text-md: #9A9AA5;
+    --text-lt: #63636D;
+    --border: #232B3D;
+    --muted: #1A2032;
+    --teal-tint: #12332C;
+    --amber-tint: #3A2A14;
+    --rose-tint: #3A1B20;
+    --violet-tint: #251E3D;
+    --blue-tint: #16223D;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --surface: #0B0F1A;
+  --card: #151B29;
+  --text: #F1F1F4;
+  --text-md: #9A9AA5;
+  --text-lt: #63636D;
+  --border: #232B3D;
+  --muted: #1A2032;
+  --teal-tint: #12332C;
+  --amber-tint: #3A2A14;
+  --rose-tint: #3A1B20;
+  --violet-tint: #251E3D;
+  --blue-tint: #16223D;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -48,6 +97,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   overscroll-behavior-y: none;
   letter-spacing: -0.01em;
+  transition: background-color .2s ease, color .2s ease;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -86,7 +136,7 @@ input:focus, select:focus, textarea:focus {
 .btn-primary { background: var(--teal); color: var(--navy); }
 .btn-primary:hover { filter: brightness(0.97); }
 .btn-secondary { background: var(--muted); color: var(--text); border: 1px solid var(--border); }
-.btn-destructive { background: #FDEBEC; color: var(--rose); }
+.btn-destructive { background: var(--rose-tint); color: var(--rose); }
 
 .pressable { transition: transform 0.12s ease, opacity 0.12s ease; -webkit-tap-highlight-color: transparent; }
 .pressable:active { transform: scale(0.96); opacity: 0.85; }
@@ -111,11 +161,11 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.6;
   white-space: nowrap;
 }
-.badge-teal   { background: #E7F8F3; color: var(--teal-dk); }
-.badge-amber  { background: #FCF1E3; color: var(--amber); }
-.badge-rose   { background: #FBEAEC; color: var(--rose); }
-.badge-violet { background: #F1ECFB; color: var(--violet); }
-.badge-blue   { background: #E9F0FD; color: #3B6FD9; }
+.badge-teal   { background: var(--teal-tint); color: var(--teal-dk); }
+.badge-amber  { background: var(--amber-tint); color: var(--amber); }
+.badge-rose   { background: var(--rose-tint); color: var(--rose); }
+.badge-violet { background: var(--violet-tint); color: var(--violet); }
+.badge-blue   { background: var(--blue-tint); color: var(--blue); }
 .badge-neutral{ background: var(--muted); color: var(--text-md); }
 
 /* ── Transición de la Agenda al cambiar de día ── */
@@ -187,6 +237,27 @@ input:focus, select:focus, textarea:focus {
   backdrop-filter: blur(14px);
   background: rgba(246, 246, 248, .82);
   border-bottom: 1px solid var(--border);
+}
+:root[data-theme="dark"] .landing-nav { background: rgba(11, 15, 26, .82); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .landing-nav { background: rgba(11, 15, 26, .82); }
+}
+
+/* ── Nav inferior fijo, con auto-hide al scrollear ── */
+.app-bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+  display: flex;
+  background: rgba(255, 255, 255, .94);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  padding-bottom: max(10px, var(--safe-bottom));
+  padding-top: 8px;
+  transition: transform .25s cubic-bezier(0.32, 0.72, 0, 1);
+}
+.app-bottom-nav.nav-hidden { transform: translateY(100%); }
+:root[data-theme="dark"] .app-bottom-nav { background: rgba(21, 27, 41, .92); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .app-bottom-nav { background: rgba(21, 27, 41, .92); }
 }
 .landing-hero h1 {
   font-size: clamp(32px, 5vw, 48px);

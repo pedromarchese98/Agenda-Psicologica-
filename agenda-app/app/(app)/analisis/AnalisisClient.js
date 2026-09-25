@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  BarChart, Bar, Legend,
+  ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip,
+  BarChart, Bar, AreaChart, Area,
 } from 'recharts';
 import { registerPayment } from './actions';
 
@@ -283,24 +283,54 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
       </div>
 
       <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
-          Evolución mensual
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
+          Sesiones por mes
         </div>
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '0 0 10px' }}>
+          Turnos con paciente, por mes.
+        </p>
         {stats.monthlyData.length < 2 ? (
           <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>No hay suficientes meses en este período para graficar.</p>
         ) : (
-          <div style={{ width: '100%', height: 200 }}>
+          <div style={{ width: '100%', height: 170 }}>
             <ResponsiveContainer>
-              <LineChart data={stats.monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E4E7F0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="left" tick={{ fontSize: 10 }} />
-                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v, name) => (name === 'recaudado' ? fmt$(v) : v)} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line yAxisId="left" type="monotone" dataKey="sesiones" stroke="#3ECFB2" strokeWidth={2.5} />
-                <Line yAxisId="right" type="monotone" dataKey="recaudado" stroke="#F0A93A" strokeWidth={2.5} />
-              </LineChart>
+              <BarChart data={stats.monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-lt)' }} axisLine={false} tickLine={false} width={28} allowDecimals={false} />
+                <Tooltip formatter={(v) => [v, 'Sesiones']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)' }} />
+                <Bar dataKey="sesiones" fill="var(--teal-dk)" radius={[4, 4, 2, 2]} maxBarSize={26} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>
+          Recaudación por mes
+        </div>
+        <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '0 0 10px' }}>
+          Total cobrado, por mes. Antes compartía eje con "Sesiones" — separarlos evita comparar dos magnitudes distintas en la misma escala.
+        </p>
+        {stats.monthlyData.length < 2 ? (
+          <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>No hay suficientes meses en este período para graficar.</p>
+        ) : (
+          <div style={{ width: '100%', height: 170 }}>
+            <ResponsiveContainer>
+              <AreaChart data={stats.monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="recaudadoFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--teal-dk)" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="var(--teal-dk)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-lt)' }} axisLine={false} tickLine={false} width={28} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
+                <Tooltip formatter={(v) => [fmt$(v), 'Recaudado']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)' }} />
+                <Area type="monotone" dataKey="recaudado" stroke="var(--teal-dk)" strokeWidth={2} fill="url(#recaudadoFill)" dot={false} activeDot={{ r: 4 }} />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
@@ -319,11 +349,11 @@ export default function AnalisisClient({ appointments, activeCount, allDebts, ev
           <div style={{ width: '100%', height: 180 }}>
             <ResponsiveContainer>
               <BarChart data={stats.weekdayData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E4E7F0" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 10 }} unit="%" />
-                <Tooltip formatter={(v) => `${v}%`} />
-                <Bar dataKey="tasa" fill="#E85D6B" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: 'var(--text-lt)' }} axisLine={false} tickLine={false} unit="%" width={30} />
+                <Tooltip formatter={(v) => `${v}%`} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)' }} />
+                <Bar dataKey="tasa" fill="var(--amber)" radius={[4, 4, 2, 2]} maxBarSize={26} />
               </BarChart>
             </ResponsiveContainer>
           </div>

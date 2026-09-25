@@ -73,7 +73,7 @@ export default function HourList({
                   className="pressable"
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
-                    textAlign: 'left', background: '#E6F8F3', border: '1px dashed #9FE0CE', borderRadius: 8,
+                    textAlign: 'left', background: 'var(--teal-tint)', border: '1px dashed #9FE0CE', borderRadius: 8,
                     padding: compact ? '5px 9px' : '9px 12px', fontSize: compact ? 11 : 12, fontWeight: 600,
                     color: 'var(--teal-dk)', cursor: 'pointer',
                   }}

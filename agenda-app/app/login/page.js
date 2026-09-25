@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Brain } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -94,10 +95,27 @@ function LoginInner() {
         alignItems: 'center',
         padding: '24px',
         background: 'var(--navy)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      <div style={{ fontSize: 40, marginBottom: 8 }}>🧠</div>
-      <h1 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 28 }}>
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute', top: -100, right: -100, width: 280, height: 280, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(62,207,178,.16), transparent 70%)', pointerEvents: 'none',
+        }}
+      />
+
+      <div
+        style={{
+          width: 52, height: 52, borderRadius: 16, background: 'rgba(62,207,178,.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14,
+        }}
+      >
+        <Brain size={26} color="var(--teal)" strokeWidth={2} />
+      </div>
+      <h1 style={{ color: '#fff', fontSize: 18, fontWeight: 800, marginBottom: 28, letterSpacing: '-0.01em' }}>
         Agenda Psicológica
       </h1>
 
@@ -105,7 +123,7 @@ function LoginInner() {
         <form
           onSubmit={handleSubmit}
           className="card"
-          style={{ width: '100%', maxWidth: 340, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}
+          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           <div>
             <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-md)' }}>Email</label>
@@ -128,20 +146,20 @@ function LoginInner() {
             />
           </div>
           {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-          <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ marginTop: 6 }}>
+          <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ marginTop: 6, padding: '12px 16px', borderRadius: 999 }}>
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
           <button
             type="button"
             onClick={() => { setMode('forgot'); setError(''); }}
-            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 12, cursor: 'pointer', marginTop: 2 }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 11.5, cursor: 'pointer', marginTop: 2 }}
           >
             ¿Olvidaste tu contraseña?
           </button>
           <button
             type="button"
             onClick={() => { setMode('signup'); setError(''); }}
-            style={{ background: 'none', border: 'none', color: 'var(--teal-dk)', fontSize: 12, cursor: 'pointer', fontWeight: 700 }}
+            style={{ background: 'none', border: 'none', color: 'var(--teal-dk)', fontSize: 11.5, cursor: 'pointer', fontWeight: 700 }}
           >
             ¿No estás registrado? Creá tu cuenta
           </button>
@@ -150,7 +168,7 @@ function LoginInner() {
         <form
           onSubmit={handleSignup}
           className="card"
-          style={{ width: '100%', maxWidth: 340, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}
+          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {signupSent ? (
             <p style={{ fontSize: 13, textAlign: 'center', margin: 0 }}>
@@ -158,7 +176,7 @@ function LoginInner() {
             </p>
           ) : (
             <>
-              <p style={{ fontSize: 13, color: 'var(--text-md)', margin: 0 }}>
+              <p style={{ fontSize: 12.5, color: 'var(--text-md)', margin: 0, lineHeight: 1.5 }}>
                 Creá tu propia cuenta — vas a tener tu propia agenda, pacientes y precios, completamente separados de los demás.
               </p>
               <input
@@ -177,7 +195,7 @@ function LoginInner() {
                 style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
               />
               {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-              <button className="btn btn-primary pressable" type="submit" disabled={loading}>
+              <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ padding: '12px 16px', borderRadius: 999 }}>
                 {loading ? 'Creando…' : 'Crear cuenta'}
               </button>
             </>
@@ -185,7 +203,7 @@ function LoginInner() {
           <button
             type="button"
             onClick={() => { setMode('login'); setSignupSent(false); setError(''); }}
-            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 12, cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 11.5, cursor: 'pointer' }}
           >
             ‹ Volver a iniciar sesión
           </button>
@@ -194,7 +212,7 @@ function LoginInner() {
         <form
           onSubmit={handleForgot}
           className="card"
-          style={{ width: '100%', maxWidth: 340, padding: 24, display: 'flex', flexDirection: 'column', gap: 14 }}
+          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {forgotSent ? (
             <p style={{ fontSize: 13, textAlign: 'center', margin: 0 }}>
@@ -202,7 +220,7 @@ function LoginInner() {
             </p>
           ) : (
             <>
-              <p style={{ fontSize: 13, color: 'var(--text-md)', margin: 0 }}>
+              <p style={{ fontSize: 12.5, color: 'var(--text-md)', margin: 0, lineHeight: 1.5 }}>
                 Ingresá tu email y te mandamos un link para restablecer tu contraseña.
               </p>
               <input
@@ -214,7 +232,7 @@ function LoginInner() {
                 style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
               />
               {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-              <button className="btn btn-primary pressable" type="submit" disabled={loading}>
+              <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ padding: '12px 16px', borderRadius: 999 }}>
                 {loading ? 'Enviando…' : 'Enviar link'}
               </button>
             </>
@@ -222,7 +240,7 @@ function LoginInner() {
           <button
             type="button"
             onClick={() => { setMode('login'); setForgotSent(false); setError(''); }}
-            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 12, cursor: 'pointer' }}
+            style={{ background: 'none', border: 'none', color: 'var(--text-lt)', fontSize: 11.5, cursor: 'pointer' }}
           >
             ‹ Volver a iniciar sesión
           </button>

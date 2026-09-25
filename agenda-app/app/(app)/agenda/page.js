@@ -116,11 +116,19 @@ export default async function AgendaPage({ searchParams }) {
     const lastOfMonth = new Date(y, m + 1, 0);
 
     const { data: appointments } = await supabase
-      .from('appointments').select('date').eq('type', 'patient')
-      .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth));
+      .from('appointments')
+      .select('date, time, attendance, payment, price, modality, patients(first_name, last_name)')
+      .eq('type', 'patient')
+      .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth))
+      .order('time', { ascending: true });
 
     const countsByDate = {};
-    (appointments || []).forEach((a) => { countsByDate[a.date] = (countsByDate[a.date] || 0) + 1; });
+    const appointmentsByDate = {};
+    (appointments || []).forEach((a) => {
+      countsByDate[a.date] = (countsByDate[a.date] || 0) + 1;
+      if (!appointmentsByDate[a.date]) appointmentsByDate[a.date] = [];
+      appointmentsByDate[a.date].push(a);
+    });
 
     const weeks = [];
     let week = [];
@@ -128,15 +136,22 @@ export default async function AgendaPage({ searchParams }) {
     for (let i = 1; i < fwd; i++) week.push(null);
     for (let day = 1; day <= lastOfMonth.getDate(); day++) {
       const cur = new Date(y, m, day);
-      if (isWeekend(cur)) continue;
-      week.push({ key: toDateStr(cur), day });
-      if (week.length === 5) { weeks.push(week); week = []; }
+      week.push({ key: toDateStr(cur), day, weekend: isWeekend(cur) });
+      if (week.length === 7) { weeks.push(week); week = []; }
     }
-    if (week.length) { while (week.length < 5) week.push(null); weeks.push(week); }
+    if (week.length) { while (week.length < 7) week.push(null); weeks.push(week); }
 
     const holidaysByDate = await getHolidays(y);
 
-    body = <MonthView weeks={weeks} countsByDate={countsByDate} todayKey={todayKey} holidaysByDate={holidaysByDate} />;
+    body = (
+      <MonthView
+        weeks={weeks}
+        countsByDate={countsByDate}
+        appointmentsByDate={appointmentsByDate}
+        todayKey={todayKey}
+        holidaysByDate={holidaysByDate}
+      />
+    );
   }
 
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;

@@ -91,7 +91,7 @@ export default function PatientsBoard({ counts, statuses, q, patients, allPatien
               className="pressable"
               style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 6px', borderBottom: '1px solid var(--border)' }}
             >
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#E6F8F3', color: 'var(--teal-dk)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--teal-tint)', color: 'var(--teal-dk)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
                 {initials(p)}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>

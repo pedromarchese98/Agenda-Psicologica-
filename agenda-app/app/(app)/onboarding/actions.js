@@ -37,6 +37,7 @@ export async function completeOnboarding(workingDays, hourStart, hourEnd) {
           time: `${String(h).padStart(2, '0')}:00`,
           attendance: 'pending',
           payment: 'na',
+          auto_block: true, // distingue estos bloqueos automáticos de los que la psicóloga crea a mano
         });
       }
     }

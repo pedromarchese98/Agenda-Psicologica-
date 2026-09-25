@@ -36,7 +36,7 @@ export default function EventRow({ event, compact }) {
     <div
       className="card pressable"
       style={{
-        border: '1px solid #D9CBF5', background: '#F1ECFB', borderRadius: 10,
+        border: '1px solid #D9CBF5', background: 'var(--violet-tint)', borderRadius: 10,
         padding: compact ? '6px 9px' : '8px 10px', display: 'flex', flexDirection: 'column', gap: 6,
       }}
     >

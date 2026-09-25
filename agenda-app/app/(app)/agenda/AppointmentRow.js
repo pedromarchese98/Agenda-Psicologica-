@@ -85,7 +85,7 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
         borderLeft: `5px solid ${borderColorFor(local, hasConflict)}`,
         padding: compact ? '8px 10px' : '12px 14px',
         display: 'flex', flexDirection: 'column', gap: 6,
-        background: hasConflict ? '#FFF6F6' : undefined,
+        background: hasConflict ? 'var(--rose-tint)' : undefined,
       }}
     >
       <div
@@ -96,7 +96,7 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
           <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
             {local.time?.slice(0, 5)} · {patientName}
             {hasConflict && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: '#C62828', fontWeight: 700 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--rose)', fontWeight: 700 }}>
                 <AlertTriangle size={11} /> Superpuesto
               </span>
             )}
@@ -113,7 +113,7 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
       {open && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
           {hasConflict && conflictWith && (
-            <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#C62828', margin: 0, fontWeight: 700 }}>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--rose)', margin: 0, fontWeight: 700 }}>
               <AlertTriangle size={12} /> Se superpone con el turno de {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro paciente'} a las {conflictWith.time?.slice(0, 5)}.
             </p>
           )}

@@ -64,7 +64,7 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         <div style={{
-          width: 52, height: 52, borderRadius: '50%', background: '#E6F8F3', color: 'var(--teal-dk)',
+          width: 52, height: 52, borderRadius: '50%', background: 'var(--teal-tint)', color: 'var(--teal-dk)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18, flexShrink: 0,
         }}>
           {(patient.first_name?.[0] || '?') + (patient.last_name?.[0] || '')}
@@ -83,7 +83,7 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
           <div><div style={{ fontSize: 18, fontWeight: 800 }}>{stats.total}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Turnos pasados</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--sage)' }}>{stats.attendanceRate}%</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Asistencia</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--rose)' }}>{stats.cancelled}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Cancelaciones</div></div>
-          <div><div style={{ fontSize: 18, fontWeight: 800, color: '#1B5E20' }}>{fmt$(stats.paid)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Recaudado</div></div>
+          <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--sage)' }}>{fmt$(stats.paid)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Recaudado</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: stats.debt > 0 ? 'var(--amber)' : 'var(--text-lt)' }}>{fmt$(stats.debt)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Debe</div></div>
         </div>
       </div>
@@ -279,12 +279,12 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
         </div>
       </div>
 
-      <div className="card" style={{ padding: 14, border: '1px solid #FFCDD2' }}>
+      <div className="card" style={{ padding: 14, border: '1px solid var(--rose-tint)' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--rose)', textTransform: 'uppercase', marginBottom: 10 }}>
           Zona de riesgo
         </div>
         {!deleteOpen ? (
-          <button onClick={() => setDeleteOpen(true)} className="btn pressable" style={{ width: '100%', fontSize: 13, background: '#FFEBEE', color: 'var(--rose)' }}>
+          <button onClick={() => setDeleteOpen(true)} className="btn pressable" style={{ width: '100%', fontSize: 13, background: 'var(--rose-tint)', color: 'var(--rose)' }}>
             🗑 Eliminar paciente permanentemente
           </button>
         ) : (

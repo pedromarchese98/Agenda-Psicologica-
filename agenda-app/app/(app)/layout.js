@@ -13,13 +13,18 @@ const TABS = [
   { href: '/analisis', label: 'Análisis', icon: BarChart3 },
 ];
 
+const HIDE_THRESHOLD = 8; // px de scroll mínimo antes de reaccionar (evita parpadeos)
+
 export default function AppLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const [email, setEmail] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [navHidden, setNavHidden] = useState(false);
   const menuRef = useRef(null);
+  const mainRef = useRef(null);
+  const lastScrollRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setEmail(data?.user?.email || ''));
@@ -37,6 +42,35 @@ export default function AppLayout({ children }) {
     };
   }, []);
 
+  // Oculta el nav inferior al scrollear hacia abajo y lo vuelve a mostrar al subir.
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    lastScrollRef.current = el.scrollTop;
+
+    function onScroll() {
+      const current = el.scrollTop;
+      const delta = current - lastScrollRef.current;
+      if (current <= 4) {
+        setNavHidden(false);
+      } else if (delta > HIDE_THRESHOLD) {
+        setNavHidden(true);
+        lastScrollRef.current = current;
+      } else if (delta < -HIDE_THRESHOLD) {
+        setNavHidden(false);
+        lastScrollRef.current = current;
+      }
+    }
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Al cambiar de pantalla, el nav siempre vuelve a mostrarse.
+  useEffect(() => {
+    setNavHidden(false);
+  }, [pathname]);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
@@ -45,12 +79,12 @@ export default function AppLayout({ children }) {
   const initial = (email || '?').trim().charAt(0).toUpperCase();
 
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
+    <div style={{ height: '100dvh', display: 'flex', flexDirection: 'column', background: 'var(--surface)' }}>
       <header
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 18px 10px', paddingTop: 'max(14px, var(--safe-top))',
-          background: 'var(--navy)', position: 'relative',
+          background: 'var(--navy)', position: 'relative', flex: 'none',
         }}
       >
         <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -91,15 +125,11 @@ export default function AppLayout({ children }) {
         </div>
       </header>
 
-      <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 78 }}>{children}</main>
+      <main ref={mainRef} style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 78 }}>
+        {children}
+      </main>
 
-      <nav
-        style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex',
-          background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(20px)',
-          borderTop: '1px solid var(--border)', paddingBottom: 'max(10px, var(--safe-bottom))', paddingTop: 8,
-        }}
-      >
+      <nav className={`app-bottom-nav${navHidden ? ' nav-hidden' : ''}`}>
         {TABS.map((tab) => {
           const active = pathname.startsWith(tab.href);
           const Icon = tab.icon;
