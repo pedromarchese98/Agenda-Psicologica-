@@ -2,15 +2,19 @@
 
 import Link from 'next/link';
 import {
-  Calendar, CalendarClock, Users, BarChart3, ShieldCheck, Smartphone,
-  Check, TrendingUp, Repeat, Bell,
+  Calendar, CalendarClock, Users, BarChart3, ShieldCheck,
+  Check, Sparkles,
 } from 'lucide-react';
 import { useReveal } from './useReveal';
 
-function Reveal({ children, delay, style }) {
+function Reveal({ children, delay, className = '', style }) {
   const { ref, inView } = useReveal();
   return (
-    <div ref={ref} className={`reveal${delay ? ` reveal-delay-${delay}` : ''}${inView ? ' in-view' : ''}`} style={style}>
+    <div
+      ref={ref}
+      className={`reveal${delay ? ` reveal-delay-${delay}` : ''}${inView ? ' in-view' : ''} ${className}`}
+      style={style}
+    >
       {children}
     </div>
   );
@@ -19,64 +23,66 @@ function Reveal({ children, delay, style }) {
 const FEATURES = [
   {
     icon: Calendar,
-    title: 'Agenda visual, sin fricción',
-    text: 'Vistas de Día, Semana y Mes pensadas para el celular. Arrastrá un turno para reprogramarlo, tocá un horario libre para agendar. Nada de formularios largos para lo que hacés todos los días.',
-    bullets: ['Arrastrar y soltar para reprogramar', 'Alertas si dos turnos se superponen', 'Series semanales y quincenales automáticas'],
+    title: 'Día, semana y mes en el mismo lenguaje visual',
+    text: 'Arrastrá un turno para reprogramarlo y la app avisa sola si se superpone con otro. Series semanales y quincenales se cargan solas.',
+    bullets: ['Arrastrar y soltar para reagendar en el momento', 'Aviso automático ante turnos superpuestos', 'Series con excepciones: una sesión o todas las futuras'],
     mock: 'agenda',
   },
   {
     icon: CalendarClock,
     title: 'Encontrá un hueco en segundos',
-    text: 'Encontrá un hueco en tu agenda, todos los horarios disponibles de las próximas 4 semanas — sin tener que recorrer el calendario día por día para encontrar un espacio.',
-    bullets: ['4 semanas de disponibilidad de un vistazo', 'Bloqueá los horarios de tu agenda'],
+    text: 'Todos los horarios disponibles de las próximas 4 semanas, de un vistazo — sin recorrer el calendario día por día.',
+    bullets: ['4 semanas de disponibilidad de un vistazo', 'Bloqueá los horarios que no atendés'],
     mock: 'free',
   },
   {
     icon: Users,
-    title: 'Cada paciente, con su historia completa',
-    text: 'Estado del tratamiento, frecuencia de sesiones, notas clínicas y estadísticas de asistencia — todo en una ficha. Cambiar de semanal a quincenal, o pausar por un viaje, es un par de toques.',
-    bullets: ['Estadísticas de asistencia y cancelación', 'Cambiar día/horario/frecuencia en un paso', 'Alta, pausa o abandono libera la agenda sola'],
+    title: 'Un panel de pacientes que se explica solo',
+    text: 'Filtrá por estado, sumá pacientes sin salir de la sección y editá el precio de sesión por modalidad, virtual y presencial.',
+    bullets: ['Estados claros: activo, en pausa, cerrado', 'Precio independiente por modalidad', 'Cambiar de semanal a quincenal en dos toques'],
     mock: 'patients',
   },
   {
     icon: BarChart3,
-    title: 'Números claros de tu consultorio',
-    text: 'Proyección de facturación del mes, evolución de sesiones, deudores con pagos parciales y patrones de cancelación — para tomar decisiones con datos, no a ojo.',
-    bullets: ['Proyección de recaudación del mes', 'Deudores con pago total o parcial', 'Tasa de cancelación por día de la semana'],
+    title: 'Facturación proyectada, sin planillas',
+    text: 'Cuánto vas a facturar este mes y los siguientes, quién te debe sesiones y tu tasa real de cancelaciones por día.',
+    bullets: ['Proyección de facturación mes a mes', 'Deudores agrupados por paciente', 'Cancelaciones por día de la semana, en %'],
     mock: 'analytics',
   },
   {
     icon: ShieldCheck,
-    title: 'Lista para crecer con tu equipo',
-    text: 'Cada profesional tiene su propia agenda, pacientes y precios — completamente aislados y privados, aunque compartan la misma plataforma.',
-    bullets: ['Datos privados por profesional', 'Se instala como app en iPhone y iPad', 'Sin planillas, sin excels, todo desde tu celular'],
+    title: 'Pensada para crecer con tu equipo',
+    text: 'Cada profesional tiene su propia agenda, sus pacientes y su información, totalmente aislada y privada.',
+    bullets: ['Datos aislados por profesional', 'Alta en minutos, sin instalar nada', 'Se instala como app en iPhone y iPad'],
     mock: 'team',
   },
 ];
 
 function MockAgenda() {
   const rows = [
-    { t: '09:00', label: 'Libre', free: true },
-    { t: '10:00', label: 'Juan', color: '#3B6FD9' },
-    { t: '11:00', label: 'Libre', free: true },
-    { t: '12:00', label: 'Valentina', color: '#2E9C6A' },
-    { t: '13:00', label: 'Pedro · ⚠ superpuesto', color: '#C62828' },
+    { t: '10:00', name: 'Juan Pedro', sub: 'Virtual · semanal', badge: 'Confirmado' },
+    { t: '11:00', name: 'Micaela Fontana', sub: 'Presencial · quincenal', badge: 'Confirmado' },
+    { t: '12:00', name: 'Turno libre', sub: 'Disponible para agendar', free: true },
+    { t: '15:00', name: 'Valentina G.', sub: 'Virtual · semanal', badge: 'Confirmado' },
   ];
   return (
-    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
       {rows.map((r) => (
-        <div key={r.t} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 10, color: 'var(--text-lt)', width: 34 }}>{r.t}</span>
-          <div
-            style={{
-              flex: 1, borderRadius: 8, padding: '8px 10px', fontSize: 11, fontWeight: 700,
-              background: r.free ? '#E6F8F3' : '#F4F6FB',
-              color: r.free ? 'var(--teal-dk)' : 'var(--text)',
-              borderLeft: r.free ? '2px dashed #9FE0CE' : `4px solid ${r.color}`,
-            }}
-          >
-            {r.label}
+        <div
+          key={r.t}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px',
+            borderRadius: 'var(--radius-md)',
+            border: r.free ? '1px dashed var(--border)' : '1px solid var(--border)',
+            background: r.free ? 'transparent' : 'var(--surface)',
+          }}
+        >
+          <span className="mock-time">{r.t}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>{r.name}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--text-lt)' }}>{r.sub}</div>
           </div>
+          {r.badge && <span className="badge badge-teal">{r.badge}</span>}
         </div>
       ))}
     </div>
@@ -88,7 +94,6 @@ function MockFreeSlots() {
     ['09:00', '10:00', '14:00'],
     ['08:00', '11:00', '15:00', '16:00'],
     ['09:00', '13:00'],
-    ['10:00', '12:00', '17:00'],
   ];
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -108,22 +113,24 @@ function MockFreeSlots() {
 
 function MockPatients() {
   const patients = [
-    { name: 'Micaela', status: 'Activo', badge: 'badge-teal', last: 'Última: 12/09' },
-    { name: 'Luca', status: 'Pausado', badge: 'badge-amber', last: 'Última: 30/08' },
-    { name: 'Agustín', status: 'Alta', badge: 'badge-violet', last: 'Última: 01/07' },
+    { name: 'Juan Pedro', badge: 'Virtual · $18.000' },
+    { name: 'Micaela Fontana', badge: 'Presencial · $20.000' },
+    { name: 'Valentina G.', badge: 'Virtual · $18.000' },
   ];
   return (
     <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {patients.map((p) => (
         <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#E6F8F3', color: 'var(--teal-dk)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>
+          <div style={{
+            width: 30, height: 30, borderRadius: '50%', background: 'var(--navy)',
+            color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 11.5, fontWeight: 800, flex: 'none',
+          }}>
             {p.name[0]}
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {p.name} <span className={`badge ${p.badge}`}>{p.status}</span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--text-lt)' }}>{p.last}</div>
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>{p.name}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--text-lt)' }}>{p.badge}</div>
           </div>
         </div>
       ))}
@@ -132,39 +139,36 @@ function MockPatients() {
 }
 
 function MockAnalytics() {
-  const bars = [40, 65, 50, 80, 60, 90];
+  const kpis = [
+    { l: 'Proyectado', v: '$412k' },
+    { l: 'Asistencia', v: '94%' },
+    { l: 'Pendiente', v: '$36k' },
+    { l: 'Cancelación', v: '6%' },
+  ];
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {[{ l: 'Proyección', v: '$540k' }, { l: 'Asistencia', v: '87%' }].map((k) => (
-          <div key={k.l} style={{ flex: 1, background: 'var(--surface)', borderRadius: 8, padding: '8px 10px' }}>
-            <div style={{ fontSize: 9, color: 'var(--text-lt)', textTransform: 'uppercase', fontWeight: 700 }}>{k.l}</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--navy)' }}>{k.v}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 60 }}>
-        {bars.map((h, i) => (
-          <div key={i} style={{ flex: 1, height: `${h}%`, background: 'var(--teal)', borderRadius: 3 }} />
-        ))}
-      </div>
+    <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      {kpis.map((k) => (
+        <div key={k.l} style={{ background: 'var(--surface)', borderRadius: 'var(--radius-md)', padding: '10px 12px', border: '1px solid var(--border)' }}>
+          <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 17, fontWeight: 700, color: 'var(--navy)' }}>{k.v}</div>
+          <div style={{ fontSize: 9.5, color: 'var(--text-lt)', marginTop: 2, textTransform: 'uppercase', letterSpacing: '.03em' }}>{k.l}</div>
+        </div>
+      ))}
     </div>
   );
 }
 
 function MockTeam() {
+  const members = [{ i: 'DG', n: 'Delfina' }, { i: 'AR', n: 'Agustín' }, { i: '+', n: 'Sumar' }];
   return (
-    <div style={{ padding: 20, display: 'flex', justifyContent: 'center', gap: -10 }}>
-      {['A', 'B', 'C'].map((l, i) => (
-        <div
-          key={l}
-          style={{
-            width: 46, height: 46, borderRadius: '50%', background: i === 1 ? 'var(--navy)' : '#E6F8F3',
-            color: i === 1 ? 'var(--teal)' : 'var(--teal-dk)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 800, fontSize: 15, marginLeft: i === 0 ? 0 : -12, border: '2px solid #fff', boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          {l}
+    <div style={{ padding: 16, display: 'flex', gap: 8 }}>
+      {members.map((m) => (
+        <div key={m.n} style={{ flex: 1, textAlign: 'center', padding: '10px 6px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', background: 'var(--surface)' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%', margin: '0 auto 6px',
+            background: 'var(--navy)', color: 'var(--teal)',
+            fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>{m.i}</div>
+          <div style={{ fontSize: 10.5, fontWeight: 700 }}>{m.n}</div>
         </div>
       ))}
     </div>
@@ -176,95 +180,150 @@ const MOCKS = { agenda: MockAgenda, free: MockFreeSlots, patients: MockPatients,
 export default function Landing() {
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--surface)' }}>
+      <style>{`
+        .l-wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; }
+        .l-feature { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+        @media (min-width: 900px) {
+          .l-feature { grid-template-columns: 1fr 1fr; gap: 56px; }
+          .l-feature.rev .f-copy { order: 2; }
+          .l-feature.rev .f-visual { order: 1; }
+          .l-hero-grid { grid-template-columns: 1.05fr 1fr; gap: 48px; text-align: left !important; }
+          .l-hero-grid .l-hero-cta, .l-hero-grid .l-eyebrow { justify-content: flex-start !important; }
+        }
+        .l-hero-grid { display: grid; grid-template-columns: 1fr; gap: 36px; align-items: center; }
+      `}</style>
+
       {/* Nav */}
-      <nav className="landing-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px' }}>
-        <span style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>Agenda Psicológica</span>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <Link href="/login" className="btn pressable" style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,.25)', fontSize: 13, padding: '8px 14px' }}>
-            Iniciar sesión
-          </Link>
-          <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 13, padding: '8px 14px' }}>
-            Registrate
-          </Link>
+      <nav className="landing-nav">
+        <div className="l-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 9, fontWeight: 800, fontSize: 15 }}>
+            <span style={{
+              width: 28, height: 28, borderRadius: 8, flex: 'none',
+              background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Calendar size={15} color="var(--teal)" />
+            </span>
+            Agenda Psicológica
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/login" className="btn btn-secondary pressable" style={{ fontSize: 13 }}>Iniciar sesión</Link>
+            <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 13 }}>Registrate</Link>
+          </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="landing-hero" style={{ padding: '64px 20px 60px', textAlign: 'center' }}>
-        <Reveal>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(62,207,178,.12)', color: 'var(--teal)', padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, marginBottom: 20 }}>
-            <Bell size={13} /> Hecha por y para psicólogos
+      <section className="l-wrap" style={{ padding: '64px 20px 56px' }}>
+        <Reveal className="l-hero-grid" style={{ display: 'grid' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div className="l-eyebrow" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center',
+              background: 'var(--teal-tint)', color: 'var(--teal-dk)', padding: '5px 14px',
+              borderRadius: 999, fontSize: 12, fontWeight: 700, marginBottom: 18,
+            }}>
+              <Sparkles size={13} /> Pensada para el consultorio real
+            </div>
+            <h1 className="landing-hero">
+              Tu agenda,<br />sin fricción<span className="accent">.</span>
+            </h1>
+            <p style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-md)', marginTop: 14, fontStyle: 'italic' }}>
+              Hecha por y para psicólogos.
+            </p>
+            <p style={{ color: 'var(--text-md)', fontSize: 15, maxWidth: 420, margin: '14px auto 0', lineHeight: 1.55 }}>
+              Turnos, pacientes, cobros y estadísticas en un solo lugar — pensada para manejarse con el pulgar entre sesión y sesión.
+            </p>
+            <div className="l-hero-cta" style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap', marginTop: 26 }}>
+              <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 14, padding: '13px 24px' }}>
+                Crear mi cuenta
+              </Link>
+              <Link href="/login" className="btn btn-secondary pressable" style={{ fontSize: 14, padding: '13px 24px' }}>
+                Ya tengo cuenta
+              </Link>
+            </div>
           </div>
-          <h1 style={{ color: '#fff', fontSize: 32, fontWeight: 800, lineHeight: 1.15, maxWidth: 480, margin: '0 auto 16px', letterSpacing: '-0.02em' }}>
-            Tu agenda, tus pacientes y tus números — sin planillas, sin fricción.
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,.65)', fontSize: 15, maxWidth: 400, margin: '0 auto 28px', lineHeight: 1.5 }}>
-            Agendá con un arrastre, encontrá un hueco libre en segundos y mirá cómo va tu consultorio con números reales — todo desde el celular.
+
+          <div className="mock-window">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', gap: 5 }}>
+                <span className="mock-dot" /><span className="mock-dot" /><span className="mock-dot" />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-lt)' }}>Jueves 24 de septiembre</span>
+              <span style={{ width: 16 }} />
+            </div>
+            <MockAgenda />
+          </div>
+        </Reveal>
+      </section>
+
+      {/* Features */}
+      <section className="l-wrap" style={{ padding: '32px 20px 72px', display: 'flex', flexDirection: 'column', gap: 64 }}>
+        {FEATURES.map((f) => {
+          const Icon = f.icon;
+          const Mock = MOCKS[f.mock];
+          return (
+            <div key={f.title} className={`l-feature${f.mock === 'patients' || f.mock === 'team' ? ' rev' : ''}`}>
+              <Reveal className="f-copy">
+                <div style={{
+                  width: 40, height: 40, borderRadius: 11, background: 'var(--navy)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+                }}>
+                  <Icon size={19} color="var(--teal)" />
+                </div>
+                <h2 style={{ fontSize: 24, fontWeight: 800, margin: '0 0 10px', letterSpacing: '-0.01em' }}>{f.title}</h2>
+                <p style={{ fontSize: 14.5, color: 'var(--text-md)', lineHeight: 1.55, margin: '0 0 16px', maxWidth: '42ch' }}>{f.text}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {f.bullets.map((b) => (
+                    <div key={b} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text)' }}>
+                      <Check size={15} color="var(--teal-dk)" style={{ flexShrink: 0, marginTop: 2 }} />
+                      {b}
+                    </div>
+                  ))}
+                </div>
+              </Reveal>
+              <Reveal className="f-visual mock-window">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', letterSpacing: '.03em' }}>
+                    {f.mock === 'agenda' && 'Agenda'}
+                    {f.mock === 'free' && 'Turnos libres'}
+                    {f.mock === 'patients' && 'Pacientes'}
+                    {f.mock === 'analytics' && 'Análisis'}
+                    {f.mock === 'team' && 'Equipo'}
+                  </span>
+                </div>
+                <Mock />
+              </Reveal>
+            </div>
+          );
+        })}
+      </section>
+
+      {/* Closing CTA */}
+      <section style={{ background: 'var(--navy)', padding: '64px 20px', textAlign: 'center' }}>
+        <Reveal>
+          <h2 style={{ color: '#fff', fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: 800, margin: '0 auto 12px', maxWidth: 420 }}>
+            Dejá de armar tu agenda a mano.
+          </h2>
+          <p style={{ color: 'rgba(255,255,255,.62)', fontSize: 14.5, maxWidth: 380, margin: '0 auto 26px', lineHeight: 1.55 }}>
+            Migramos tu historial completo de turnos y pacientes. Empezar toma diez minutos.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 14, padding: '13px 22px' }}>
+            <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 14, padding: '13px 26px' }}>
               Crear mi cuenta gratis
             </Link>
-            <Link href="/login" className="btn pressable" style={{ fontSize: 14, padding: '13px 22px', background: 'rgba(255,255,255,.08)', color: '#fff', border: '1px solid rgba(255,255,255,.2)' }}>
+            <Link
+              href="/login"
+              className="btn pressable"
+              style={{ fontSize: 14, padding: '13px 26px', background: 'rgba(255,255,255,.08)', color: '#fff', border: '1px solid rgba(255,255,255,.2)' }}
+            >
               Ya tengo cuenta
             </Link>
           </div>
         </Reveal>
       </section>
 
-      {/* Features */}
-      <section style={{ padding: '56px 20px', display: 'flex', flexDirection: 'column', gap: 64, maxWidth: 480, margin: '0 auto' }}>
-        {FEATURES.map((f, i) => {
-          const Icon = f.icon;
-          const Mock = MOCKS[f.mock];
-          return (
-            <Reveal key={f.title}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icon size={17} color="var(--teal)" />
-                </div>
-              </div>
-              <h2 style={{ fontSize: 21, fontWeight: 800, margin: '0 0 10px', letterSpacing: '-0.01em' }}>{f.title}</h2>
-              <p style={{ fontSize: 14, color: 'var(--text-md)', lineHeight: 1.55, margin: '0 0 16px' }}>{f.text}</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                {f.bullets.map((b) => (
-                  <div key={b} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text)' }}>
-                    <Check size={15} color="var(--teal-dk)" style={{ flexShrink: 0, marginTop: 1 }} />
-                    {b}
-                  </div>
-                ))}
-              </div>
-              <div className="mock-window">
-                <div style={{ display: 'flex', gap: 5, padding: '9px 12px', borderBottom: '1px solid var(--border)' }}>
-                  <span className="mock-dot" style={{ background: '#FF5F57' }} />
-                  <span className="mock-dot" style={{ background: '#FEBC2E' }} />
-                  <span className="mock-dot" style={{ background: '#28C840' }} />
-                </div>
-                <Mock />
-              </div>
-            </Reveal>
-          );
-        })}
-      </section>
-
-      {/* Closing CTA */}
-      <section style={{ background: 'var(--navy)', padding: '56px 20px', textAlign: 'center' }}>
-        <Reveal>
-          <TrendingUp size={28} color="var(--teal)" style={{ marginBottom: 14 }} />
-          <h2 style={{ color: '#fff', fontSize: 24, fontWeight: 800, margin: '0 0 10px' }}>
-            Empezá a ordenar tu consultorio hoy
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,.6)', fontSize: 14, maxWidth: 360, margin: '0 auto 26px' }}>
-            Creá tu cuenta en un minuto. Tus datos quedan completamente privados, separados de cualquier otro profesional.
-          </p>
-          <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 14, padding: '13px 26px' }}>
-            Crear mi cuenta gratis
-          </Link>
-        </Reveal>
-      </section>
-
-      <footer style={{ padding: '24px 20px', textAlign: 'center', fontSize: 12, color: 'var(--text-lt)' }}>
-        Agenda Psicológica — hecha a medida para tu consultorio.
+      <footer className="l-wrap" style={{ padding: '24px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, fontSize: 12, color: 'var(--text-lt)' }}>
+        <span>© {new Date().getFullYear()} Agenda Psicológica</span>
+        <span>Hecha por y para psicólogos</span>
       </footer>
     </div>
   );
