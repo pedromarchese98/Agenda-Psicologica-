@@ -48,5 +48,6 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.json|icon.svg).*)'],
+  // Íconos, manifest e imágenes quedan fuera: el celular los pide sin sesión al guardar el acceso directo.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.json|apple-icon|icon|opengraph-image|.*\\.(?:png|svg|jpg|jpeg|webp|ico)$).*)'],
 };

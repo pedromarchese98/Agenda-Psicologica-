@@ -6,19 +6,6 @@ import { nowInTz, todayISO } from '@/lib/date';
 
 const DAYS_AHEAD = 180; // misma ventana que usa el onboarding
 
-export async function updateSettings(priceVirtual, pricePresencial) {
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  await supabase
-    .from('settings')
-    .upsert({ owner_id: user.id, price_virtual: priceVirtual, price_presencial: pricePresencial });
-
-  revalidatePath('/perfil');
-}
-
 // Cambia los días/horario de atención después del onboarding: guarda la preferencia
 // y regenera los bloqueos automáticos futuros (los turnos con pacientes NO se tocan).
 export async function updateSchedule(workingDays, hourStart, hourEnd) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign, Laptop, Home, ChevronDown } from 'lucide-react';
+import { Laptop, Home, ChevronDown, ChevronRight } from 'lucide-react';
 import AddPatientButton from './AddPatientButton';
 import BulkPriceUpdateModal from './BulkPriceUpdateModal';
 import { registerPayment } from '../analisis/actions';
@@ -16,9 +16,25 @@ const STATUS_LABEL = {
   active: 'Activos', paused: 'Pausados', suspended: 'Suspendidos',
   abandoned: 'Abandonaron', discharged: 'De alta', referred: 'Derivados',
 };
+const STATUS_SINGULAR = {
+  active: 'Activo', paused: 'Pausado', suspended: 'Suspendido',
+  abandoned: 'Abandonó', discharged: 'De alta', referred: 'Derivado',
+};
+// Color del borde izquierdo de cada fila, según el estado del tratamiento.
+const STATUS_EDGE = {
+  active: 'var(--teal-dk)', paused: 'var(--warning)', suspended: 'var(--warning)',
+  abandoned: 'var(--danger)', discharged: 'var(--violet)', referred: 'var(--info)',
+};
+const DOW_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-function initials(p) {
-  return (p.first_name?.[0] || '?') + (p.last_name?.[0] || '');
+// "2026-09-18" → "18/09"
+function ddmm(dateStr) {
+  if (!dateStr) return '';
+  return `${dateStr.slice(8, 10)}/${dateStr.slice(5, 7)}`;
+}
+// "2026-09-18" → "Jue 18/09"
+function dowDdmm(dateStr) {
+  return `${DOW_SHORT[new Date(dateStr + 'T00:00:00').getDay()]} ${ddmm(dateStr)}`;
 }
 
 const fmt$ = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
@@ -98,28 +114,27 @@ export default function PacientesClient({
   const loadingFicha = view === 'ficha' && !detailView;
 
   return (
-    <div style={{ width: '100%', background: 'var(--card)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', minHeight: '100%', background: 'var(--card)', display: 'flex', flexDirection: 'column' }}>
       {showTabs && (
-        <div style={{ padding: '14px 16px 0' }}>
-          <h2 style={{ fontSize: 17, margin: '0 0 12px' }}>Pacientes</h2>
-          <div className="segmented" style={{ width: '100%', marginBottom: 14 }}>
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-soft)' }}>
+          <div className="segmented" style={{ width: '100%' }}>
             <button
               onClick={() => setView('lista')}
               className={`pressable segmented-item${view === 'lista' ? ' active' : ''}`}
-              style={{ flex: 1, border: 'none', cursor: 'pointer' }}
+              style={{ flex: 1 }}
             >
               Lista
             </button>
             <button
               onClick={() => setView('deudores')}
               className={`pressable segmented-item${view === 'deudores' ? ' active' : ''}`}
-              style={{ flex: 1, border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+              style={{ flex: 1 }}
             >
               Deudores
               {debtorsCount > 0 && (
                 <span style={{
-                  fontSize: 10, fontWeight: 800, minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999,
-                  background: 'var(--amber)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9.5, fontWeight: 800, minWidth: 16, height: 16, padding: '0 5px', borderRadius: 999,
+                  background: 'var(--warning)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {debtorsCount}
                 </span>
@@ -132,66 +147,79 @@ export default function PacientesClient({
       {/* ---- LISTA ---- */}
       {view === 'lista' && (
         <>
-          <div style={{ padding: '0 16px' }}>
+          <div style={{ display: 'flex', gap: 8, padding: '12px 16px' }}>
+            <AddPatientButton compact />
+            <BulkPriceUpdateModal patients={allPatientsForBulk} infoByPatient={infoByPatient} compact />
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, padding: '0 16px 12px' }}>
+            {STATUS_ORDER.map((key) => {
+              const active = statuses.includes(key);
+              const count = counts[key] || 0;
+              const amber = active && (key === 'paused' || key === 'suspended');
+              return (
+                <button
+                  key={key}
+                  onClick={() => toggleStatus(key)}
+                  aria-pressed={active}
+                  className="pressable"
+                  style={{
+                    border: 'none', cursor: 'pointer', fontSize: 10.5, fontWeight: 700, padding: '4px 10px', borderRadius: 999,
+                    background: amber ? 'var(--warning-tint)' : active ? 'var(--btn)' : 'var(--muted)',
+                    color: amber ? 'var(--warning-text)' : active ? 'var(--btn-fg)' : 'var(--text-md)',
+                    opacity: count === 0 && !active ? 0.5 : 1,
+                  }}
+                >
+                  {STATUS_LABEL[key]} · {count}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ padding: '0 16px 12px' }}>
             <input
+              type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre…"
-              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, marginBottom: 12 }}
+              aria-label="Buscar paciente"
+              style={{ width: '100%', padding: '10px 13px', borderRadius: 12, background: 'var(--muted)', fontSize: 14 }}
             />
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-              {STATUS_ORDER.map((key) => {
-                const active = statuses.includes(key);
-                const count = counts[key] || 0;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => toggleStatus(key)}
-                    className={`pressable badge ${active ? STATUS_BADGE[key] : 'badge-neutral'}`}
-                    style={{ border: 'none', cursor: 'pointer', opacity: count === 0 ? 0.4 : 1, fontSize: 12, padding: '6px 11px' }}
-                  >
-                    {STATUS_LABEL[key]} · {count}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
-              <AddPatientButton compact />
-              <BulkPriceUpdateModal patients={allPatientsForBulk} infoByPatient={infoByPatient} compact />
-            </div>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '4px 10px 16px' }}>
+          <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {visiblePatients.map((p) => {
               const info = infoByPatient[p.id];
               return (
-                <div
+                <button
                   key={p.id}
                   onClick={() => openFicha(p.id)}
-                  className="pressable"
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 6px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                  className="card pressable"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', cursor: 'pointer', textAlign: 'left',
+                    borderLeft: `4px solid ${STATUS_EDGE[p.status] || 'var(--teal-dk)'}`, color: 'var(--text)', font: 'inherit', width: '100%',
+                  }}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--teal-tint)', color: 'var(--teal-dk)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
-                    {initials(p)}
-                  </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {p.first_name} {p.last_name || ''}
-                      <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`}>{STATUS_LABEL[p.status]?.replace(/s$/, '') || 'Activo'}</span>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.first_name} {p.last_name || ''}</span>
+                      <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`} style={{ fontSize: 9.5, fontWeight: 700, padding: '2px 8px' }}>
+                        {STATUS_SINGULAR[p.status] || 'Activo'}
+                      </span>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-lt)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {info?.modality && (info.modality === 'virtual' ? <Laptop size={11} /> : <Home size={11} />)}
-                      {info ? `${fmt$(info.price)} · Última: ${info.lastVisit}` : 'Sin turnos registrados'}
+                    <div style={{ fontSize: 11, color: 'var(--text-lt)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {info?.modality && (info.modality === 'virtual'
+                        ? <Laptop size={11} aria-label="Virtual" />
+                        : <Home size={11} aria-label="Presencial" />)}
+                      {info ? `${fmt$(info.price)} · Última: ${ddmm(info.lastVisit)}` : 'Sin turnos registrados'}
                     </div>
                   </div>
-                  <span style={{ color: 'var(--text-lt)', fontSize: 18, fontWeight: 600, flex: 'none' }}>›</span>
-                </div>
+                  <ChevronRight size={17} color="var(--text-lt)" style={{ flex: 'none' }} />
+                </button>
               );
             })}
             {visiblePatients.length === 0 && (
-              <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center' }}>
+              <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center', margin: 0 }}>
                 {search.trim() ? 'Ningún paciente coincide con la búsqueda.' : 'No hay pacientes en las categorías elegidas.'}
               </p>
             )}
@@ -207,14 +235,14 @@ export default function PacientesClient({
       {/* ---- FICHA ---- */}
       {view === 'ficha' && (
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '14px 16px 0' }}>
-            <span
+          <div style={{ padding: '18px 16px 0' }}>
+            <button
               onClick={backToList}
               className="pressable"
-              style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--teal-dk)', cursor: 'pointer' }}
+              style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--teal-dk)', cursor: 'pointer', background: 'none', border: 'none', padding: 0 }}
             >
               ‹ Volver a la lista
-            </span>
+            </button>
           </div>
           {loadingFicha ? (
             <p style={{ padding: 20, fontSize: 13, color: 'var(--text-lt)' }}>Cargando…</p>
@@ -259,20 +287,20 @@ function DebtorsPanel({ debtorsList, onOpenFicha }) {
   const nPat = local.length;
 
   return (
-    <div style={{ padding: '14px 16px 90px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ padding: '14px 16px 100px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--amber-tint)',
-        border: '1px solid var(--amber)', borderRadius: 'var(--radius-lg)', padding: 14,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--warning-tint)',
+        border: '1px solid color-mix(in srgb, var(--warning) 35%, transparent)', borderRadius: 'var(--radius-lg)', padding: 14,
       }}>
         <div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#9A6100', textTransform: 'uppercase', letterSpacing: '.03em' }}>
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: 'var(--warning-text)', textTransform: 'uppercase', letterSpacing: '.03em' }}>
             Total pendiente de cobro
           </div>
-          <div style={{ fontSize: 12, color: '#8A5A00', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: 'var(--warning-text)', marginTop: 2 }}>
             {nPat === 0 ? 'Nadie debe nada' : `${nPat} paciente${nPat > 1 ? 's' : ''} con deuda`}
           </div>
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#8A5A00' }}>{fmt$(totAll)}</div>
+        <div className="mono" style={{ fontSize: 21, fontWeight: 800, color: 'var(--warning-text)' }}>{fmt$(totAll)}</div>
       </div>
       {nPat > 0 && (
         <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: '2px 2px 4px' }}>
@@ -282,38 +310,39 @@ function DebtorsPanel({ debtorsList, onOpenFicha }) {
 
       {local.map((g) => {
         const open = openId === g.patientId;
-        const sub = g.items.length > 1 ? `${g.items.length} sesiones sin cobrar` : `1 sesión sin cobrar · ${g.items[0]?.date}`;
+        const sub = g.items.length > 1 ? `${g.items.length} sesiones sin cobrar` : `1 sesión sin cobrar · ${ddmm(g.items[0]?.date)}`;
         return (
-          <div key={g.patientId} className="card" style={{ borderLeft: '4px solid var(--amber)', overflow: 'hidden' }}>
-            <div
+          <div key={g.patientId} className="card" style={{ borderLeft: '4px solid var(--warning)', overflow: 'hidden' }}>
+            <button
+              type="button"
               onClick={() => setOpenId(open ? null : g.patientId)}
-              className="pressable"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 12px 11px 14px', cursor: 'pointer' }}
+              aria-expanded={open}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 12px 11px 14px', cursor: 'pointer', width: '100%', background: 'none', border: 'none', color: 'var(--text)', font: 'inherit', textAlign: 'left' }}
             >
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13.5 }}>{g.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-lt)', marginTop: 1 }}>{sub}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 800, fontSize: 14, color: '#B87200' }}>{fmt$(g.total)}</span>
+                <span className="mono" style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--warning-text)' }}>{fmt$(g.total)}</span>
                 <ChevronDown size={15} color="var(--text-lt)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }} />
               </div>
-            </div>
+            </button>
             {open && (
-              <div style={{ borderTop: '1px solid var(--border)', padding: '6px 12px 12px 14px' }}>
-                {g.items.map((item) => (
-                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: '1px solid var(--border)' }}>
+              <div style={{ borderTop: '1px solid var(--border-soft)', padding: '6px 12px 12px 14px' }}>
+                {g.items.map((item, idx) => (
+                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderTop: idx === 0 ? 'none' : '1px solid var(--border-soft)' }}>
                     <div>
-                      <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 11.5, fontWeight: 600 }}>{item.date} · {item.time?.slice(0, 5)}</div>
+                      <div className="mono" style={{ fontSize: 11.5, fontWeight: 600 }}>{dowDdmm(item.date)} · {item.time?.slice(0, 5)}</div>
                       <div style={{ fontSize: 10.5, color: 'var(--text-lt)' }}>Sesión individual</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontWeight: 700, fontSize: 12.5 }}>{fmt$(remaining(item))}</span>
+                      <span className="mono" style={{ fontWeight: 700, fontSize: 12.5 }}>{fmt$(remaining(item))}</span>
                       <button
                         onClick={() => payItem(g.patientId, item)}
                         disabled={isPending}
-                        className="pressable"
-                        style={{ fontSize: 11, fontWeight: 700, border: 'none', borderRadius: 999, padding: '6px 12px', background: 'var(--teal)', color: 'var(--navy)', cursor: 'pointer' }}
+                        className="btn btn-accent pressable"
+                        style={{ fontSize: 11, padding: '6px 12px', boxShadow: 'none' }}
                       >
                         Cobrar
                       </button>
@@ -326,13 +355,9 @@ function DebtorsPanel({ debtorsList, onOpenFicha }) {
                     <button
                       key={m}
                       onClick={() => setMethodByPatient((prev) => ({ ...prev, [g.patientId]: m }))}
-                      className="pressable"
-                      style={{
-                        font: 'inherit', fontSize: 11, fontWeight: 700, borderRadius: 999, padding: '4px 10px', cursor: 'pointer',
-                        border: methodFor(g.patientId) === m ? '1px solid var(--navy)' : '1px solid var(--border)',
-                        background: methodFor(g.patientId) === m ? 'var(--navy)' : 'var(--card)',
-                        color: methodFor(g.patientId) === m ? '#fff' : 'var(--text-md)',
-                      }}
+                      aria-pressed={methodFor(g.patientId) === m}
+                      className={`chip pressable${methodFor(g.patientId) === m ? ' on' : ''}`}
+                      style={{ fontSize: 11, padding: '4px 10px' }}
                     >
                       {m === 'cash' ? 'Efectivo' : 'Transferencia'}
                     </button>
@@ -342,8 +367,8 @@ function DebtorsPanel({ debtorsList, onOpenFicha }) {
                   <button
                     onClick={() => payAll(g)}
                     disabled={isPending}
-                    className="pressable"
-                    style={{ width: '100%', marginTop: 10, fontSize: 12, fontWeight: 700, border: 'none', borderRadius: 999, padding: 10, background: 'var(--navy)', color: '#fff', cursor: 'pointer' }}
+                    className="btn btn-primary btn-block pressable"
+                    style={{ marginTop: 10, fontSize: 12, padding: 10 }}
                   >
                     Cobrar todo · {fmt$(g.total)}
                   </button>
@@ -361,7 +386,7 @@ function DebtorsPanel({ debtorsList, onOpenFicha }) {
         );
       })}
       {nPat === 0 && (
-        <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center' }}>Sin deudores 🙌</p>
+        <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center' }}>Nadie te debe sesiones.</p>
       )}
     </div>
   );

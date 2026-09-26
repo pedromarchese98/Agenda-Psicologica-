@@ -30,35 +30,26 @@ export default function AddPatientButton({ compact }) {
         onClick={() => setOpen(true)}
         className="btn btn-primary pressable"
         style={compact
-          ? { flex: 1, fontSize: 12, padding: '9px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }
-          : { width: 'calc(100% - 24px)', margin: '10px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+          ? { flex: 1, fontSize: 12.5, padding: '11px 10px', gap: 6 }
+          : { width: 'calc(100% - 24px)', margin: '10px 12px 0' }}
       >
-        <Plus size={15} /> Agregar
+        <Plus size={13} strokeWidth={2.5} color="var(--teal)" /> Nuevo paciente
       </button>
 
       {open && (
-        <div
-          onClick={() => setOpen(false)}
-          className="sheet-backdrop"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,41,.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="card sheet-box"
-            style={{ width: '100%', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: '10px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 2, margin: '4px auto' }} />
-            <h3 style={{ margin: 0, fontSize: 16 }}>Nuevo paciente</h3>
+        <div onClick={() => setOpen(false)} className="sheet-backdrop">
+          <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="sheet sheet-box">
+            <div className="sheet-grab" />
+            <h3>Nuevo paciente</h3>
             <input
-              value={first} onChange={(e) => setFirst(e.target.value)} placeholder="Nombre" required autoFocus
-              style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+              value={first} onChange={(e) => setFirst(e.target.value)} placeholder="Nombre" required autoFocus aria-label="Nombre"
+              style={{ padding: '11px 13px', background: 'var(--muted)' }}
             />
             <input
-              value={last} onChange={(e) => setLast(e.target.value)} placeholder="Apellido (opcional)"
-              style={{ padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+              value={last} onChange={(e) => setLast(e.target.value)} placeholder="Apellido (opcional)" aria-label="Apellido"
+              style={{ padding: '11px 13px', background: 'var(--muted)' }}
             />
-            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
               <button type="button" className="btn btn-secondary pressable" style={{ flex: 1 }} onClick={() => setOpen(false)}>Cancelar</button>
               <button type="submit" className="btn btn-primary pressable" style={{ flex: 1 }} disabled={isPending}>
                 {isPending ? 'Guardando…' : 'Guardar'}

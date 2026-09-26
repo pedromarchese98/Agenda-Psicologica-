@@ -85,7 +85,9 @@ export async function deleteFutureAppointments(patientId, fromDate) {
   revalidatePath('/agenda');
 }
 
-export async function changeFutureSchedule(patientId, fromDate, time, frequency, modality, price) {
+// Nuevo encuadre: borra los turnos desde `fromDate` y genera la serie nueva a partir de `startDate`
+// (el primer día elegido a partir de esa fecha; si no se pasa, arranca en `fromDate`).
+export async function changeFutureSchedule(patientId, fromDate, time, frequency, modality, price, startDate) {
   const supabase = createClient();
   const {
     data: { user },
@@ -94,14 +96,15 @@ export async function changeFutureSchedule(patientId, fromDate, time, frequency,
   // Borra los turnos futuros desde la fecha elegida (el historial pasado no se toca).
   await supabase.from('appointments').delete().eq('patient_id', patientId).gte('date', fromDate);
 
-  const d = new Date(fromDate + 'T00:00:00');
+  const firstDate = startDate && startDate >= fromDate ? startDate : fromDate;
+  const d = new Date(firstDate + 'T00:00:00');
   const weekday = (d.getDay() + 6) % 7;
 
   const { data: series } = await supabase
     .from('appointment_series')
     .insert({
       owner_id: user.id, patient_id: patientId, weekday, time,
-      frequency, modality, price, start_date: fromDate,
+      frequency, modality, price, start_date: firstDate,
     })
     .select('id')
     .single();

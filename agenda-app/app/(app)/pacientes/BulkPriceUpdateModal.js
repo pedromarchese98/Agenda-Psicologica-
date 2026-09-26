@@ -51,28 +51,19 @@ export default function BulkPriceUpdateModal({ patients, infoByPatient, compact 
     <>
       <button
         onClick={() => setOpen(true)}
-        className="btn btn-secondary pressable"
+        className="btn btn-accent pressable"
         style={compact
-          ? { flex: 1, fontSize: 12, padding: '9px 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }
-          : { width: 'calc(100% - 24px)', margin: '8px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+          ? { flex: 1, fontSize: 12.5, padding: '11px 10px', gap: 6 }
+          : { width: 'calc(100% - 24px)', margin: '8px 12px 0', fontSize: 13 }}
       >
-        <DollarSign size={15} /> Precios
+        <DollarSign size={13} strokeWidth={2.5} /> Establecer precios
       </button>
 
       {open && (
-        <div
-          onClick={() => setOpen(false)}
-          className="sheet-backdrop"
-          style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,41,.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}
-        >
-          <form
-            onSubmit={handleSubmit}
-            onClick={(e) => e.stopPropagation()}
-            className="card sheet-box"
-            style={{ width: '100%', maxHeight: '88dvh', overflowY: 'auto', borderBottomLeftRadius: 0, borderBottomRightRadius: 0, padding: '10px 20px calc(20px + var(--safe-bottom))', display: 'flex', flexDirection: 'column', gap: 12 }}
-          >
-            <div style={{ width: 36, height: 4, background: 'var(--border)', borderRadius: 2, margin: '4px auto' }} />
-            <h3 style={{ margin: 0, fontSize: 16 }}>Actualizar precio de sesión</h3>
+        <div onClick={() => setOpen(false)} className="sheet-backdrop">
+          <form onSubmit={handleSubmit} onClick={(e) => e.stopPropagation()} className="sheet sheet-box" style={{ gap: 12 }}>
+            <div className="sheet-grab" />
+            <h3>Establecer precios</h3>
             <p style={{ fontSize: 12, color: 'var(--text-md)', margin: 0 }}>
               Se aplica solo a los turnos futuros (desde la fecha elegida) que coincidan con la modalidad, de los pacientes que marques abajo. Dejá un precio en blanco si no querés tocar esa modalidad.
             </p>
@@ -106,12 +97,12 @@ export default function BulkPriceUpdateModal({ patients, infoByPatient, compact 
                 Marcar todos
               </button>
             </div>
-            <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ maxHeight: 260, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 12 }}>
               {patients.map((p) => {
                 const info = infoByPatient?.[p.id];
                 return (
-                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
-                    <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} />
+                  <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderBottom: '1px solid var(--border-soft)', fontSize: 13 }}>
+                    <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} style={{ accentColor: 'var(--teal-dk)', width: 16, height: 16, margin: 0 }} />
                     <span style={{ flex: 1 }}>{p.first_name} {p.last_name || ''}</span>
                     <span className={`badge ${STATUS_BADGE[p.status] || 'badge-teal'}`}>{STATUS_LABEL[p.status] || 'Activo'}</span>
                     {info?.modality && (

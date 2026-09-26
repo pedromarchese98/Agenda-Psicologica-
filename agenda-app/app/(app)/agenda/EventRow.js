@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useTransition } from 'react';
-import { Pin, Calendar, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { updateEventPayment, rescheduleAppointment, deleteEventConfirmed } from './actions';
 
 const PAYMENT_LABEL = { pending: 'Pendiente', paid: 'Pagó', na: 'No corresponde' };
 
+// Evento (reunión, colegio, supervisión…): bloque gris con borde de estado tenue.
 export default function EventRow({ event, compact }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -32,32 +33,29 @@ export default function EventRow({ event, compact }) {
     startTransition(() => deleteEventConfirmed(local.id));
   }
 
+  const isPaid = Number(local.price) > 0;
+
   return (
-    <div
-      className="card pressable"
-      style={{
-        border: '1px solid #D9CBF5', background: 'var(--violet-tint)', borderRadius: 10,
-        padding: compact ? '6px 9px' : '8px 10px', display: 'flex', flexDirection: 'column', gap: 6,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => setOpen((v) => !v)}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: compact ? 11 : 12, fontWeight: 700, color: '#6A3FA0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          <Pin size={compact ? 11 : 12} strokeWidth={2} />
-          {local.time?.slice(0, 5)} · {local.title}
-          {Number(local.price) > 0 && <span style={{ marginLeft: 4, color: '#8A5FC0' }}>· {PAYMENT_LABEL[local.payment] || ''}</span>}
-        </div>
-        {open ? <ChevronUp size={13} color="#8A5FC0" /> : <ChevronDown size={13} color="#8A5FC0" />}
-      </div>
+    <div className="event-row">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {!compact && `${local.time?.slice(0, 5)} · `}{local.title}
+          {isPaid && <span style={{ color: 'var(--text-lt)' }}> · {PAYMENT_LABEL[local.payment] || ''}</span>}
+        </span>
+        {open ? <ChevronUp size={13} color="var(--text-lt)" /> : <ChevronDown size={13} color="var(--text-lt)" />}
+      </button>
 
       {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid #D9CBF5' }}>
-          {Number(local.price) > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, marginTop: 8, borderTop: '1px solid var(--border)' }}>
+          {isPaid && (
+            <div className="chip-row">
               {Object.entries(PAYMENT_LABEL).map(([key, label]) => (
-                <button
-                  key={key} onClick={() => setPayment(key)} className="btn pressable"
-                  style={{ fontSize: 11, padding: '6px 9px', background: local.payment === key ? '#6A3FA0' : '#fff', color: local.payment === key ? '#fff' : 'var(--text)' }}
-                >
+                <button key={key} onClick={() => setPayment(key)} className={`chip chip-sm pressable${local.payment === key ? ' on' : ''}`}>
                   {label}
                 </button>
               ))}
@@ -66,19 +64,19 @@ export default function EventRow({ event, compact }) {
 
           {!reschedOpen ? (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 11, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={() => setReschedOpen(true)} className="mini-btn pressable" style={{ background: 'var(--card)' }}>
                 <Calendar size={12} /> Reprogramar
               </button>
-              <button onClick={handleDelete} className="btn btn-destructive pressable" style={{ fontSize: 11, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <button onClick={handleDelete} className="mini-btn danger pressable">
                 <Trash2 size={12} /> Eliminar
               </button>
             </div>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: 6, borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }} />
-              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} style={{ padding: 6, borderRadius: 6, border: '1px solid var(--border)', fontSize: 11 }} />
-              <button onClick={saveReschedule} className="btn btn-primary pressable" style={{ fontSize: 11, padding: '6px 9px' }}>Guardar</button>
-              <button onClick={() => setReschedOpen(false)} className="btn btn-secondary pressable" style={{ fontSize: 11, padding: '6px 9px' }}>Cancelar</button>
+              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: 7, fontSize: 12 }} />
+              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} style={{ padding: 7, fontSize: 12 }} />
+              <button onClick={saveReschedule} className="btn btn-primary btn-sm pressable">Guardar</button>
+              <button onClick={() => setReschedOpen(false)} className="btn btn-secondary btn-sm pressable">Cancelar</button>
             </div>
           )}
         </div>

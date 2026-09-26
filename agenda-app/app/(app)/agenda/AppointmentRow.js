@@ -23,15 +23,15 @@ const METHOD_OPTIONS = [
 ];
 const PAYMENT_DISPLAY = { pending: 'Pago pendiente', paid: 'Pagó', unpaid: 'No pagó', na: 'No corresponde' };
 
+// Borde de estado: confirmado (teal), superpuesto (rojo), debe pago (ámbar), cancelado / ausente (tenue).
 function borderColorFor(a, hasConflict) {
-  if (hasConflict) return '#C62828';
-  if (a.attendance === 'no-free') return '#C2454F';
-  if (a.attendance === 'no') return '#8A93A8';
-  if (a.payment === 'paid') return '#2E9C6A';
-  if (a.payment === 'unpaid') return '#D98A22';
-  if (a.attendance === 'yes') return '#1E88A8';
-  return '#3B6FD9';
+  if (hasConflict) return 'var(--danger)';
+  if (a.attendance === 'no-free' || a.attendance === 'no') return 'var(--text-lt)';
+  if (a.payment === 'unpaid') return 'var(--warning)';
+  return 'var(--teal-dk)';
 }
+
+const METHOD_LABEL = { transfer: 'Transferencia', cash: 'Efectivo' };
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
 
@@ -78,63 +78,64 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
     startTransition(() => { deleteAppointment(local.id); });
   }
 
+  const attendanceLabel = local.attendance === 'no-free' ? 'Canceló' : local.attendance === 'no' ? 'No asistió' : null;
+  const paymentText = local.payment === 'paid' && METHOD_LABEL[local.payment_method]
+    ? `Pagó · ${METHOD_LABEL[local.payment_method]}`
+    : PAYMENT_DISPLAY[local.payment] || '';
+
   return (
     <div
-      className="card pressable"
-      style={{
-        borderLeft: `5px solid ${borderColorFor(local, hasConflict)}`,
-        padding: compact ? '8px 10px' : '12px 14px',
-        display: 'flex', flexDirection: 'column', gap: 6,
-        background: hasConflict ? 'var(--rose-tint)' : undefined,
-      }}
+      className={`appt${hasConflict ? ' conflict' : ''}`}
+      style={{ borderLeftColor: borderColorFor(local, hasConflict) }}
     >
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+      <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', padding: 0, color: 'inherit', font: 'inherit', cursor: 'pointer', textAlign: 'left' }}
       >
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: compact ? 13 : 15, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: 5 }}>
-            {local.time?.slice(0, 5)} · {patientName}
+          <div className="appt-name">
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {local.time?.slice(0, 5)} · {patientName}
+            </span>
             {hasConflict && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, color: 'var(--rose)', fontWeight: 700 }}>
-                <AlertTriangle size={11} /> Superpuesto
-              </span>
+              <span className="warn-chip"><AlertTriangle size={10} />{!compact && ' Superpuesto'}</span>
             )}
           </div>
           {!compact && (
-            <div style={{ fontSize: 12, color: 'var(--text-md)', marginTop: 2 }}>
-              {local.modality === 'virtual' ? 'Virtual' : 'Presencial'} · {fmt$(local.price)} · {PAYMENT_DISPLAY[local.payment] || ''}
+            <div className="appt-sub">
+              {local.modality === 'virtual' ? 'Virtual' : 'Presencial'} · {fmt$(local.price)} · {attendanceLabel ? `${attendanceLabel} · ` : ''}{paymentText}
+              {hasConflict && conflictWith && !open && (
+                <> · Se superpone con {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro turno'} a las {conflictWith.time?.slice(0, 5)}</>
+              )}
             </div>
           )}
         </div>
         {open ? <ChevronUp size={14} color="var(--text-lt)" /> : <ChevronDown size={14} color="var(--text-lt)" />}
-      </div>
+      </button>
 
       {open && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 10, marginTop: 10, borderTop: '1px solid var(--border-soft)' }}>
           {hasConflict && conflictWith && (
-            <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--rose)', margin: 0, fontWeight: 700 }}>
+            <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--danger)', margin: 0, fontWeight: 700 }}>
               <AlertTriangle size={12} /> Se superpone con el turno de {conflictWith.patients ? `${conflictWith.patients.first_name} ${conflictWith.patients.last_name || ''}`.trim() : 'otro paciente'} a las {conflictWith.time?.slice(0, 5)}.
             </p>
           )}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div className="chip-row">
             {ATTENDANCE_OPTIONS.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key} onClick={() => setAttendance(key)} className="btn pressable"
-                style={{ fontSize: 12, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 5, background: local.attendance === key ? 'var(--navy)' : 'var(--surface)', color: local.attendance === key ? '#fff' : 'var(--text)' }}
-              >
-                <Icon size={13} /> {label}
+              <button key={key} onClick={() => setAttendance(key)} aria-pressed={local.attendance === key}
+                className={`chip chip-sm pressable${local.attendance === key ? ' on' : ''}`}>
+                <Icon size={12} /> {label}
               </button>
             ))}
           </div>
 
           {(local.attendance === 'yes' || local.attendance === 'no') && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="chip-row">
               {PAYMENT_OPTIONS_BILLABLE.map(({ key, label }) => (
-                <button
-                  key={key} onClick={() => setPayment(key)} className="btn pressable"
-                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment === key ? 'var(--teal)' : 'var(--surface)', color: local.payment === key ? 'var(--navy)' : 'var(--text)' }}
-                >
+                <button key={key} onClick={() => setPayment(key)} aria-pressed={local.payment === key}
+                  className={`chip chip-sm pressable${local.payment === key ? ' on pay' : ''}`}>
                   {label}
                 </button>
               ))}
@@ -142,12 +143,10 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
           )}
 
           {local.attendance === 'no-free' && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="chip-row">
               {PAYMENT_OPTIONS_CANCELLED.map(({ key, label }) => (
-                <button
-                  key={key} onClick={() => setPayment(key)} className="btn pressable"
-                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment === key ? 'var(--teal)' : 'var(--surface)', color: local.payment === key ? 'var(--navy)' : 'var(--text)' }}
-                >
+                <button key={key} onClick={() => setPayment(key)} aria-pressed={local.payment === key}
+                  className={`chip chip-sm pressable${local.payment === key ? ' on pay' : ''}`}>
                   {label}
                 </button>
               ))}
@@ -155,12 +154,10 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
           )}
 
           {local.payment === 'paid' && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="chip-row">
               {METHOD_OPTIONS.map(({ key, label }) => (
-                <button
-                  key={key} onClick={() => setMethod(key)} className="btn pressable"
-                  style={{ fontSize: 12, padding: '7px 10px', background: local.payment_method === key ? 'var(--navy)' : 'var(--surface)', color: local.payment_method === key ? '#fff' : 'var(--text)' }}
-                >
+                <button key={key} onClick={() => setMethod(key)} aria-pressed={local.payment_method === key}
+                  className={`chip chip-sm pressable${local.payment_method === key ? ' on' : ''}`}>
                   {label}
                 </button>
               ))}
@@ -168,26 +165,20 @@ export default function AppointmentRow({ appt, compact, hasConflict, conflictWit
           )}
 
           {!reschedOpen ? (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setReschedOpen(true)} className="btn btn-secondary pressable" style={{ fontSize: 12, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <Calendar size={13} /> Reprogramar
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button onClick={() => setReschedOpen(true)} className="mini-btn pressable">
+                <Calendar size={12} /> Reprogramar
               </button>
-              <button onClick={handleDelete} className="btn btn-destructive pressable" style={{ fontSize: 12, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <Trash2 size={13} /> Eliminar turno
+              <button onClick={handleDelete} className="mini-btn danger pressable">
+                <Trash2 size={12} /> Eliminar turno
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'var(--surface)', padding: 8, borderRadius: 8 }}>
-              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)}
-                style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }} />
-              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)}
-                style={{ padding: 7, borderRadius: 7, border: '1px solid var(--border)', fontSize: 12 }} />
-              <button onClick={saveReschedule} className="btn btn-primary pressable" style={{ fontSize: 12, padding: '7px 10px' }}>
-                Guardar
-              </button>
-              <button onClick={() => setReschedOpen(false)} className="btn btn-secondary pressable" style={{ fontSize: 12, padding: '7px 10px' }}>
-                Cancelar
-              </button>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', background: 'var(--muted)', padding: 8, borderRadius: 10 }}>
+              <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} style={{ padding: 7, fontSize: 12 }} />
+              <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} style={{ padding: 7, fontSize: 12 }} />
+              <button onClick={saveReschedule} className="btn btn-primary btn-sm pressable">Guardar</button>
+              <button onClick={() => setReschedOpen(false)} className="btn btn-outline btn-sm pressable">Cancelar</button>
             </div>
           )}
         </div>
