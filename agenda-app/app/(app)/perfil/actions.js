@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { nowInTz, todayISO } from '@/lib/date';
 
 const DAYS_AHEAD = 180; // misma ventana que usa el onboarding
 
@@ -33,8 +34,8 @@ export async function updateSchedule(workingDays, hourStart, hourEnd) {
     hour_end: hourEnd,
   });
 
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const today = nowInTz();
+  const todayStr = todayISO();
 
   // Se borran SOLO los bloqueos automáticos futuros (auto_block = true).
   // Los turnos con pacientes y los horarios que la psicóloga bloqueó a mano no se tocan.

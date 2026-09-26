@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { todayISO } from '@/lib/date';
 import PatientDetail from './PatientDetail';
 import PacientesClient from './PacientesClient';
 
@@ -70,11 +71,8 @@ export default async function PacientesPage({ searchParams }) {
     .filter(Boolean)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const filtered = (allPatients || []).filter((p) => {
-    if (!statuses.includes(p.status)) return false;
-    if (q.trim() && !`${p.first_name} ${p.last_name || ''}`.toLowerCase().includes(q.trim().toLowerCase())) return false;
-    return true;
-  });
+  // El filtro por texto de búsqueda se aplica en el cliente (instantáneo, a medida que se escribe).
+  const filtered = (allPatients || []).filter((p) => statuses.includes(p.status));
 
   let detail = null;
   if (selectedId) {
@@ -84,7 +82,7 @@ export default async function PacientesPage({ searchParams }) {
       supabase.from('appointments').select('*').eq('patient_id', selectedId).eq('type', 'patient').order('date', { ascending: true }),
     ]);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     const upcoming = (allAppts || []).filter((a) => a.date >= today);
     const past = (allAppts || []).filter((a) => a.date < today);
 
@@ -97,10 +95,11 @@ export default async function PacientesPage({ searchParams }) {
 
     const nextVirtual = [...upcoming].find((a) => a.modality === 'virtual') || [...past].reverse().find((a) => a.modality === 'virtual');
     const nextPresencial = [...upcoming].find((a) => a.modality === 'presencial') || [...past].reverse().find((a) => a.modality === 'presencial');
+    const firstDate = (allAppts || []).length ? allAppts[0].date : null;
 
     detail = {
       patient, notes: notes || [], upcoming,
-      stats: { total, attended, cancelled, paid, debt, attendanceRate },
+      stats: { total, attended, cancelled, paid, debt, attendanceRate, firstDate },
       priceVirtual: nextVirtual?.price ?? null,
       pricePresencial: nextPresencial?.price ?? null,
     };

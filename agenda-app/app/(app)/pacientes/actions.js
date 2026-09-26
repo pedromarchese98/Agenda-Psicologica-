@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { todayISO } from '@/lib/date';
 
 export async function updatePatientStatus(patientId, status, reason) {
   const supabase = createClient();
@@ -20,7 +21,7 @@ export async function updatePatientStatus(patientId, status, reason) {
   // Cualquier estado que no sea "activo" libera automáticamente los turnos futuros.
   // Al reactivar, no se genera nada solo: hay que fijar un horario nuevo desde "Frecuencia del tratamiento".
   if (status !== 'active') {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayISO();
     await supabase.from('appointments').delete().eq('patient_id', patientId).gte('date', today);
   }
 

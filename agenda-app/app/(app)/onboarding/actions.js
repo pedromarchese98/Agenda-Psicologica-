@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { nowInTz } from '@/lib/date';
 
 const DAYS_AHEAD = 180; // ventana de bloqueo automático (~6 meses)
 
@@ -20,7 +21,7 @@ export async function completeOnboarding(workingDays, hourStart, hourEnd) {
   });
 
   const rows = [];
-  const today = new Date();
+  const today = nowInTz();
   for (let i = 0; i < DAYS_AHEAD; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);

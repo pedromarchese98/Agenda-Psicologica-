@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { nowInTz, todayISO } from '@/lib/date';
 import AvailabilityList from './AvailabilityList';
 
 function pad(n) { return String(n).padStart(2, '0'); }
@@ -10,8 +11,8 @@ const WEEKS_AHEAD = 4;
 
 export default async function DisponiblesPage() {
   const supabase = createClient();
-  const today = new Date();
-  const todayKey = toDateStr(today);
+  const today = nowInTz();
+  const todayKey = todayISO();
 
   const windowEnd = new Date(today);
   windowEnd.setDate(windowEnd.getDate() + WEEKS_AHEAD * 7 - 1);

@@ -16,10 +16,12 @@ const STATUS = {
 };
 
 const fmt$ = (n) => '$' + (Number(n) || 0).toLocaleString('es-AR');
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 export default function PatientDetail({ patient, notes, upcoming, stats, priceVirtual, pricePresencial }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [closing, setClosing] = useState(false);
   const [reason, setReason] = useState(null);
@@ -62,6 +64,26 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
     ? `${DOW[new Date(upcoming[0].date + 'T00:00:00').getDay()]} · ${upcoming[0].time?.slice(0, 5)}`
     : null;
 
+  // Meses en tratamiento desde la primera sesión registrada.
+  let treatmentDuration = null;
+  if (stats.firstDate) {
+    const start = new Date(stats.firstDate + 'T00:00:00');
+    const now = new Date();
+    const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+    treatmentDuration = { months: Math.max(months, 0), sinceLabel: `${MONTH_SHORT[start.getMonth()]} ${start.getFullYear()}` };
+  }
+
+  function pickWeekday(dow) {
+    // dow: 0=domingo..6=sábado. Busca la próxima fecha (desde hoy) que caiga en ese día.
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      if (d.getDay() === dow) break;
+      d.setDate(d.getDate() + 1);
+    }
+    setFreqDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -87,6 +109,12 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--rose)' }}>{stats.cancelled}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Cancelaciones</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--sage)' }}>{fmt$(stats.paid)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Recaudado</div></div>
           <div><div style={{ fontSize: 18, fontWeight: 800, color: stats.debt > 0 ? 'var(--amber)' : 'var(--text-lt)' }}>{fmt$(stats.debt)}</div><div style={{ fontSize: 10, color: 'var(--text-lt)' }}>Debe</div></div>
+          {treatmentDuration && (
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{treatmentDuration.months} {treatmentDuration.months === 1 ? 'mes' : 'meses'}</div>
+              <div style={{ fontSize: 10, color: 'var(--text-lt)' }}>En sesión · desde {treatmentDuration.sinceLabel}</div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -234,13 +262,32 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
               Ej: "de acá en más, los miércoles a las 10:00, semanal" — elegí el primer miércoles en el campo "Desde".
               Se borran los turnos futuros de este paciente y se generan de nuevo con estos datos. El historial pasado no se toca.
             </p>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Día</label>
+              <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                {[1, 2, 3, 4, 5, 6].map((dow) => {
+                  const selected = new Date(freqDate + 'T00:00:00').getDay() === dow;
+                  return (
+                    <button
+                      key={dow} type="button" onClick={() => pickWeekday(dow)} className="pressable"
+                      style={{
+                        flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 700, padding: '7px 0', borderRadius: 10, cursor: 'pointer',
+                        background: selected ? 'var(--navy)' : 'var(--surface)', color: selected ? '#fff' : 'var(--text-md)', border: '1px solid var(--border)',
+                      }}
+                    >
+                      {DOW[dow].slice(0, 3)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Desde</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>A partir del</label>
                 <input type="date" value={freqDate} onChange={(e) => setFreqDate(e.target.value)} style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Hora</label>
+                <label style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-md)' }}>Horario</label>
                 <input type="time" value={freqTime} onChange={(e) => setFreqTime(e.target.value)} style={{ width: '100%', marginTop: 4, padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
               </div>
             </div>
@@ -280,10 +327,41 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
       </div>
 
       <div className="card" style={{ padding: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 10 }}>
-          Notas clínicas
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>Notas clínicas</div>
+          {!noteOpen && (
+            <button onClick={() => setNoteOpen(true)} className="pressable" style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: 'var(--navy)', background: 'var(--teal)', border: 'none', borderRadius: 999, padding: '5px 10px', cursor: 'pointer' }}>
+              + Nueva nota
+            </button>
+          )}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+
+        {noteOpen && (
+          <div style={{ background: 'var(--surface)', borderRadius: 10, padding: 10, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-md)', marginBottom: 6 }}>
+              Sesión del <strong>{new Date().toLocaleDateString('es-AR')}</strong>
+            </div>
+            <textarea
+              value={noteText} onChange={(e) => setNoteText(e.target.value)} autoFocus rows={4}
+              placeholder="Escribí la nota de la sesión…"
+              style={{ width: '100%', padding: 9, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: 'var(--text-lt)', marginTop: 6 }}>
+              🔒 Solo vos podés ver estas notas
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button className="btn btn-secondary pressable" style={{ flex: 1, fontSize: 12 }} onClick={() => { setNoteOpen(false); setNoteText(''); }}>Cancelar</button>
+              <button
+                className="btn btn-primary pressable" style={{ flex: 1, fontSize: 12 }} disabled={!noteText.trim() || isPending}
+                onClick={() => startTransition(async () => { await addNote(patient.id, noteText); setNoteText(''); setNoteOpen(false); })}
+              >
+                Guardar nota
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {notes.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-lt)', margin: 0 }}>Sin notas todavía.</p>}
           {notes.map((n) => (
             <div key={n.id} style={{ background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
@@ -291,13 +369,6 @@ export default function PatientDetail({ patient, notes, upcoming, stats, priceVi
               <div style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{n.text}</div>
             </div>
           ))}
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <textarea value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Nueva nota…"
-            style={{ flex: 1, padding: 10, borderRadius: 10, border: '1px solid var(--border)', minHeight: 44, resize: 'vertical' }} />
-          <button className="btn btn-primary pressable" onClick={() => startTransition(async () => { await addNote(patient.id, noteText); setNoteText(''); })}>
-            Agregar
-          </button>
         </div>
       </div>
 

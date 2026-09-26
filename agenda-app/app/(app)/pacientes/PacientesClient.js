@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { DollarSign, Laptop, Home, ChevronDown } from 'lucide-react';
 import AddPatientButton from './AddPatientButton';
@@ -23,6 +23,11 @@ function initials(p) {
 
 const fmt$ = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 
+// Sin acentos y en minúscula, para que "jose" encuentre "José" y viceversa.
+function normalize(s) {
+  return (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 export default function PacientesClient({
   counts, statuses, q, patients, allPatientsForBulk, infoByPatient,
   debtByPatient = {}, debtorsCount = 0, debtorsList = [],
@@ -36,6 +41,23 @@ export default function PacientesClient({
   useEffect(() => {
     if (detailId) setView('ficha');
   }, [detailId]);
+
+  // Filtro por texto instantáneo: coincide si alguna parte del nombre contiene lo escrito (sin importar acentos).
+  const visiblePatients = useMemo(() => {
+    const needle = normalize(search).trim();
+    if (!needle) return patients;
+    return patients.filter((p) => normalize(`${p.first_name} ${p.last_name || ''}`).includes(needle));
+  }, [patients, search]);
+
+  // Mantiene el ?q= de la URL sincronizado (sin recargar ni pisar el historial) para que el link se pueda compartir.
+  useEffect(() => {
+    if (view !== 'lista') return;
+    const t = setTimeout(() => {
+      router.replace(`/pacientes?${baseParams().toString()}`, { scroll: false });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
 
   function baseParams(extra = {}) {
     const params = new URLSearchParams();
@@ -114,8 +136,6 @@ export default function PacientesClient({
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && goList({})}
-              onBlur={() => goList({})}
               placeholder="Buscar por nombre…"
               style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, marginBottom: 12 }}
             />
@@ -144,7 +164,7 @@ export default function PacientesClient({
           </div>
 
           <div style={{ flex: 1, overflowY: 'auto', padding: '4px 10px 16px' }}>
-            {patients.map((p) => {
+            {visiblePatients.map((p) => {
               const info = infoByPatient[p.id];
               return (
                 <div
@@ -170,9 +190,9 @@ export default function PacientesClient({
                 </div>
               );
             })}
-            {patients.length === 0 && (
+            {visiblePatients.length === 0 && (
               <p style={{ color: 'var(--text-lt)', fontSize: 13, padding: 20, textAlign: 'center' }}>
-                No hay pacientes en las categorías elegidas.
+                {search.trim() ? 'Ningún paciente coincide con la búsqueda.' : 'No hay pacientes en las categorías elegidas.'}
               </p>
             )}
           </div>

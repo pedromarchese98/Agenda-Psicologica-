@@ -6,6 +6,7 @@ import MonthView from './MonthView';
 import SwipeDayNav from './SwipeDayNav';
 import OnboardingWizard from '../onboarding/OnboardingWizard';
 import { getHolidays } from './holidays';
+import { todayISO } from '@/lib/date';
 
 function pad(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -32,11 +33,11 @@ const MONTH_NAMES = [
 ];
 
 export default async function AgendaPage({ searchParams }) {
-  const dateStr = searchParams?.date || toDateStr(new Date());
+  const dateStr = searchParams?.date || todayISO();
   const view = searchParams?.view || 'day';
   const supabase = createClient();
   const d = new Date(dateStr + 'T00:00:00');
-  const todayKey = toDateStr(new Date());
+  const todayKey = todayISO();
 
   const {
     data: { user },

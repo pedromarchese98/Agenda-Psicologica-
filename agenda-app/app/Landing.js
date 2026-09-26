@@ -237,9 +237,9 @@ export default function Landing() {
               <Link href="/login?mode=signup" className="btn btn-primary pressable" style={{ fontSize: 14, padding: '13px 24px' }}>
                 Crear mi cuenta
               </Link>
-              <Link href="/login" className="btn btn-secondary pressable" style={{ fontSize: 14, padding: '13px 24px' }}>
-                Ya tengo cuenta
-              </Link>
+              <a href="#features" className="btn btn-secondary pressable" style={{ fontSize: 14, padding: '13px 24px' }}>
+                Ver cómo funciona →
+              </a>
             </div>
           </div>
 
@@ -257,7 +257,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="l-wrap" style={{ padding: '32px 20px 72px', display: 'flex', flexDirection: 'column', gap: 64 }}>
+      <section id="features" className="l-wrap" style={{ padding: '32px 20px 72px', display: 'flex', flexDirection: 'column', gap: 64 }}>
         {FEATURES.map((f) => {
           const Icon = f.icon;
           const Mock = MOCKS[f.mock];
