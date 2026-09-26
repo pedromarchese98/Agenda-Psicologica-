@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import DayView from './DayView';
 import WeekView from './WeekView';
 import MonthView from './MonthView';
@@ -14,6 +15,10 @@ function addDays(dateStr, delta) {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + delta);
   return toDateStr(d);
+}
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return addDays(dateStr, -((d.getDay() || 7) - 1));
 }
 function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
 function addWeeks(dateStr, n) {
@@ -31,6 +36,34 @@ const MONTH_NAMES = [
   'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ];
+const DAY_SHORT = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MONTH_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+
+// Precio sugerido por paciente y modalidad: el último precio que tuvo cada uno.
+// Si el paciente no tiene historial en esa modalidad, se usa el último precio de cualquier paciente
+// (o el precio por defecto guardado en la configuración, si existe).
+async function loadPriceHints(supabase, settings) {
+  const { data } = await supabase
+    .from('appointments')
+    .select('patient_id, modality, price')
+    .eq('type', 'patient')
+    .gt('price', 0)
+    .order('date', { ascending: false })
+    .limit(1500);
+  const byPatient = {};
+  const fallback = {
+    virtual: Number(settings?.price_virtual) || null,
+    presencial: Number(settings?.price_presencial) || null,
+  };
+  const seenFallback = {};
+  (data || []).forEach((a) => {
+    if (!a.modality) return;
+    if (!byPatient[a.patient_id]) byPatient[a.patient_id] = {};
+    if (byPatient[a.patient_id][a.modality] == null) byPatient[a.patient_id][a.modality] = Number(a.price);
+    if (!seenFallback[a.modality]) { fallback[a.modality] = Number(a.price); seenFallback[a.modality] = true; }
+  });
+  return { byPatient, fallback };
+}
 
 export default async function AgendaPage({ searchParams }) {
   const dateStr = searchParams?.date || todayISO();
@@ -42,7 +75,7 @@ export default async function AgendaPage({ searchParams }) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: settings } = await supabase.from('settings').select('onboarding_completed').eq('owner_id', user.id).maybeSingle();
+  const { data: settings } = await supabase.from('settings').select('onboarding_completed, price_virtual, price_presencial').eq('owner_id', user.id).maybeSingle();
   if (!settings?.onboarding_completed) {
     return <OnboardingWizard />;
   }
@@ -61,14 +94,15 @@ export default async function AgendaPage({ searchParams }) {
   let navLabel = '';
 
   if (view === 'day') {
-    const [{ data: appointments }, { data: blocks }, { data: others }, { data: patients }] = await Promise.all([
+    const [{ data: appointments }, { data: blocks }, { data: others }, { data: patients }, priceHints] = await Promise.all([
       supabase.from('appointments').select('*, patients(first_name, last_name)').eq('date', dateStr).eq('type', 'patient').order('time', { ascending: true }),
       supabase.from('appointments').select('*').eq('date', dateStr).eq('type', 'block').order('time', { ascending: true }),
       supabase.from('appointments').select('*').eq('date', dateStr).eq('type', 'other').order('time', { ascending: true }),
-      supabase.from('patients').select('id, first_name, last_name').order('first_name', { ascending: true }),
+      supabase.from('patients').select('id, first_name, last_name, status').order('first_name', { ascending: true }),
+      loadPriceHints(supabase, settings),
     ]);
-    navLabel = `${DAY_NAMES[d.getDay()]}, ${d.getDate()} de ${MONTH_NAMES[d.getMonth()]}`;
-    body = <DayView dateStr={dateStr} appointments={appointments || []} blocks={blocks || []} others={others || []} patients={patients || []} />;
+    navLabel = `${DAY_SHORT[d.getDay()]} ${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`;
+    body = <DayView dateStr={dateStr} appointments={appointments || []} blocks={blocks || []} others={others || []} patients={patients || []} priceHints={priceHints} />;
   }
 
   if (view === 'week') {
@@ -83,13 +117,16 @@ export default async function AgendaPage({ searchParams }) {
     }
     const friday = new Date(monday);
     friday.setDate(monday.getDate() + 4);
-    navLabel = `${monday.getDate()} ${MONTH_NAMES[monday.getMonth()].slice(0, 3)} – ${friday.getDate()} ${MONTH_NAMES[friday.getMonth()].slice(0, 3)}`;
+    navLabel = monday.getMonth() === friday.getMonth()
+      ? `${monday.getDate()} — ${friday.getDate()} ${MONTH_SHORT[friday.getMonth()]}`
+      : `${monday.getDate()} ${MONTH_SHORT[monday.getMonth()]} — ${friday.getDate()} ${MONTH_SHORT[friday.getMonth()]}`;
 
-    const [{ data: appointments }, { data: blocksData }, { data: othersData }, { data: patients }] = await Promise.all([
+    const [{ data: appointments }, { data: blocksData }, { data: othersData }, { data: patients }, priceHints] = await Promise.all([
       supabase.from('appointments').select('*, patients(first_name, last_name)').eq('type', 'patient').gte('date', days[0].key).lte('date', days[4].key),
       supabase.from('appointments').select('date, time').eq('type', 'block').gte('date', days[0].key).lte('date', days[4].key),
       supabase.from('appointments').select('*').eq('type', 'other').gte('date', days[0].key).lte('date', days[4].key),
-      supabase.from('patients').select('id, first_name, last_name').order('first_name', { ascending: true }),
+      supabase.from('patients').select('id, first_name, last_name, status').order('first_name', { ascending: true }),
+      loadPriceHints(supabase, settings),
     ]);
 
     const appointmentsByDate = {};
@@ -107,28 +144,38 @@ export default async function AgendaPage({ searchParams }) {
       if (!othersByDate[o.date]) othersByDate[o.date] = [];
       othersByDate[o.date].push(o);
     });
-    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} blockedByDate={blockedByDate} othersByDate={othersByDate} patients={patients || []} />;
+    body = <WeekView days={days} appointmentsByDate={appointmentsByDate} blockedByDate={blockedByDate} othersByDate={othersByDate} patients={patients || []} priceHints={priceHints} />;
   }
 
   if (view === 'month') {
     const y = d.getFullYear(), m = d.getMonth();
-    navLabel = `${MONTH_NAMES[m]} ${y}`;
+    navLabel = y === new Date(todayKey + 'T00:00:00').getFullYear() ? MONTH_NAMES[m] : `${MONTH_NAMES[m]} ${y}`;
     const firstOfMonth = new Date(y, m, 1);
     const lastOfMonth = new Date(y, m + 1, 0);
 
-    const { data: appointments } = await supabase
-      .from('appointments')
-      .select('date, time, attendance, payment, price, modality, patients(first_name, last_name)')
-      .eq('type', 'patient')
-      .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth))
-      .order('time', { ascending: true });
+    const [{ data: appointments }, { data: othersData }] = await Promise.all([
+      supabase
+        .from('appointments')
+        .select('id, date, time, attendance, payment, price, modality, patients(first_name, last_name)')
+        .eq('type', 'patient')
+        .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth))
+        .order('time', { ascending: true }),
+      supabase
+        .from('appointments')
+        .select('id, date, time, title')
+        .eq('type', 'other')
+        .gte('date', toDateStr(firstOfMonth)).lte('date', toDateStr(lastOfMonth)),
+    ]);
 
-    const countsByDate = {};
     const appointmentsByDate = {};
     (appointments || []).forEach((a) => {
-      countsByDate[a.date] = (countsByDate[a.date] || 0) + 1;
       if (!appointmentsByDate[a.date]) appointmentsByDate[a.date] = [];
       appointmentsByDate[a.date].push(a);
+    });
+    const othersByDate = {};
+    (othersData || []).forEach((o) => {
+      if (!othersByDate[o.date]) othersByDate[o.date] = [];
+      othersByDate[o.date].push(o);
     });
 
     const weeks = [];
@@ -147,8 +194,8 @@ export default async function AgendaPage({ searchParams }) {
     body = (
       <MonthView
         weeks={weeks}
-        countsByDate={countsByDate}
         appointmentsByDate={appointmentsByDate}
+        othersByDate={othersByDate}
         todayKey={todayKey}
         holidaysByDate={holidaysByDate}
       />
@@ -157,34 +204,29 @@ export default async function AgendaPage({ searchParams }) {
 
   const viewLink = (v) => `/agenda?view=${v}&date=${dateStr}`;
 
+  const isCurrent =
+    view === 'month' ? dateStr.slice(0, 7) === todayKey.slice(0, 7) :
+    view === 'week' ? mondayOf(dateStr) === mondayOf(todayKey) :
+    dateStr === todayKey;
+
   return (
     <SwipeDayNav prevHref={prevHref} nextHref={nextHref} dateKey={`${view}-${dateStr}`}>
-      <div style={{ padding: '16px 16px 0' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-          <div className="segmented">
-            {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([v, label]) => (
-              <Link key={v} href={viewLink(v)} className={`pressable segmented-item${view === v ? ' active' : ''}`}>
-                {label}
-              </Link>
-            ))}
-          </div>
+      <div className="agenda-toolbar">
+        <div className="date-nav">
+          <Link href={prevHref} className="circle-btn pressable" aria-label="Anterior"><ChevronLeft size={15} /></Link>
+          <span className="d">{navLabel}</span>
+          <Link href={nextHref} className="circle-btn pressable" aria-label="Siguiente"><ChevronRight size={15} /></Link>
+          {!isCurrent && (
+            <Link href={todayHref} className="today-pill pressable">Hoy</Link>
+          )}
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-          <Link href={prevHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>‹</Link>
-          <div style={{ flex: 1, textAlign: 'center', fontWeight: 700, fontSize: 15, textTransform: 'capitalize' }}>
-            {navLabel}
-          </div>
-          <Link href={nextHref} className="btn btn-secondary pressable" style={{ padding: '8px 12px' }}>›</Link>
-        </div>
-
-        {dateStr !== todayKey && (
-          <div style={{ textAlign: 'center', marginBottom: 8 }}>
-            <Link href={todayHref} style={{ fontSize: 13, color: 'var(--teal-dk)', fontWeight: 700 }}>
-              Volver a hoy
+        <div className="segmented">
+          {[['day', 'Día'], ['week', 'Semana'], ['month', 'Mes']].map(([v, label]) => (
+            <Link key={v} href={viewLink(v)} className={`pressable segmented-item${view === v ? ' active' : ''}`} style={{ padding: '5px 10px', fontSize: 11 }}>
+              {label}
             </Link>
-          </div>
-        )}
+          ))}
+        </div>
       </div>
 
       {body}

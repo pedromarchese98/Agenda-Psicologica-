@@ -83,6 +83,12 @@ export default function AppLayout({ children }) {
     setNavHidden(false);
   }, [pathname]);
 
+  // El botón flotante (+) se renderiza en <body>: acompaña al nav con una clase global.
+  useEffect(() => {
+    document.body.classList.toggle('nav-hidden', navHidden);
+    return () => document.body.classList.remove('nav-hidden');
+  }, [navHidden]);
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push('/login');
@@ -95,12 +101,12 @@ export default function AppLayout({ children }) {
       <header
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px 10px', paddingTop: 'max(14px, var(--safe-top))',
+          padding: '14px 18px 12px', paddingTop: 'max(14px, var(--safe-top))',
           background: 'var(--navy)', position: 'relative', flex: 'none',
         }}
       >
-        <span style={{ color: '#fff', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <LogoIcon size={18} color="var(--teal)" strokeWidth={2} /> {APP_NAME}
+        <span style={{ color: '#fff', fontWeight: 700, fontSize: 14.5, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <LogoIcon size={17} color="var(--teal)" strokeWidth={2} /> {APP_NAME}
         </span>
 
         <div ref={menuRef} style={{ position: 'relative' }}>
@@ -109,7 +115,7 @@ export default function AppLayout({ children }) {
             className="pressable"
             style={{
               width: 30, height: 30, borderRadius: '50%', background: avatarUrl ? 'var(--muted)' : 'var(--teal)', color: 'var(--navy)',
-              border: 'none', fontWeight: 800, fontSize: 13, cursor: 'pointer',
+              border: 'none', fontWeight: 800, fontSize: 12.5, cursor: 'pointer',
               backgroundImage: avatarUrl ? `url(${avatarUrl})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center',
             }}
             aria-label="Cuenta"
@@ -118,8 +124,8 @@ export default function AppLayout({ children }) {
           </button>
 
           {menuOpen && (
-            <div className="card" style={{ position: 'absolute', top: 38, right: 0, width: 220, padding: 10, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <div style={{ padding: '6px 8px 10px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
+            <div className="card" style={{ position: 'absolute', top: 38, right: 0, width: 230, padding: 10, zIndex: 60, display: 'flex', flexDirection: 'column', gap: 2, borderRadius: 14, boxShadow: 'var(--shadow-lg)' }}>
+              <div style={{ padding: '6px 8px 10px', borderBottom: '1px solid var(--border-soft)', marginBottom: 4 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{email}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-lt)' }}>Psicólogo/a</div>
               </div>
@@ -129,7 +135,7 @@ export default function AppLayout({ children }) {
               </Link>
               <button
                 onClick={handleLogout} className="pressable"
-                style={{ padding: '9px 8px', fontSize: 13, borderRadius: 8, fontWeight: 600, textAlign: 'left', background: 'none', border: 'none', color: 'var(--rose)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                style={{ padding: '9px 8px', fontSize: 13, borderRadius: 8, fontWeight: 600, textAlign: 'left', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
               >
                 <LogOut size={15} /> Cerrar sesión
               </button>
@@ -149,9 +155,10 @@ export default function AppLayout({ children }) {
           return (
             <Link
               key={tab.href} href={tab.href} className="pressable"
-              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: active ? 'var(--teal-dk)' : 'var(--text-lt)', fontSize: 10.5, fontWeight: 700 }}
+              aria-current={active ? 'page' : undefined}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, color: active ? 'var(--teal-dk)' : 'var(--text-lt)', fontSize: 10, fontWeight: 700 }}
             >
-              <Icon size={21} strokeWidth={active ? 2.3 : 1.8} />
+              <Icon size={20} strokeWidth={active ? 2.2 : 1.8} />
               {tab.label}
               <span className="tab-dot" style={{ opacity: active ? 1 : 0 }} />
             </Link>

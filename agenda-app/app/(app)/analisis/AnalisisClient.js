@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import {
   ResponsiveContainer, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, AreaChart, Area, LabelList,
 } from 'recharts';
-import { MoreVertical, Download, Search } from 'lucide-react';
+import { MoreHorizontal, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const fmt$ = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
 const WEEKDAY_LABELS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
@@ -62,7 +61,7 @@ function bucketByRange(apps, range, customFrom, customTo, todayYm) {
   const note =
     range === '3m' ? 'Últ. 3 meses · vs. los 3 meses anteriores' :
     range === 'ytd' ? `Enero – ${monthLabel(todayYm)} · año en curso` :
-    `${months[0]} – ${months[n - 1]} · vs. período anterior`;
+    `${monthLabel(months[0])} – ${monthLabel(months[n - 1])} · vs. período anterior`;
   return { current, previousItems, note };
 }
 
@@ -75,43 +74,17 @@ function heatColor(k) {
   return `rgb(${c.join(',')})`;
 }
 
-const RANGE_OPTS = [['mes', 'Este mes'], ['3m', 'Últ. 3 meses'], ['ytd', 'Este año'], ['custom', 'Personalizado']];
-
-function RangeChips({ value, onChange, from, to, onFrom, onTo }) {
-  return (
-    <div style={{ marginBottom: 8 }}>
-      <div style={{ display: 'flex', gap: 5, overflowX: 'auto' }}>
-        {RANGE_OPTS.map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => onChange(v)}
-            className="pressable"
-            style={{
-              flex: 'none', fontSize: 10, fontWeight: 700, padding: '5px 10px', borderRadius: 999, border: 'none', cursor: 'pointer',
-              background: value === v ? 'var(--navy)' : 'var(--muted)', color: value === v ? '#fff' : 'var(--text-md)',
-            }}
-          >
-            {l}
-          </button>
-        ))}
-      </div>
-      {value === 'custom' && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 6 }}>
-          <input type="month" value={from} onChange={(e) => onFrom(e.target.value)} style={{ flex: 1, fontSize: 11, padding: '5px 7px', borderRadius: 8, border: '1px solid var(--border)' }} />
-          <span style={{ fontSize: 10, color: 'var(--text-lt)' }}>a</span>
-          <input type="month" value={to} onChange={(e) => onTo(e.target.value)} style={{ flex: 1, fontSize: 11, padding: '5px 7px', borderRadius: 8, border: '1px solid var(--border)' }} />
-        </div>
-      )}
-    </div>
-  );
-}
+const PERIOD_OPTS = [['month', 'Este mes'], ['quarter', 'Últ. 3 meses'], ['year', 'Este año'], ['custom', 'Personalizado']];
+const PERIOD_TO_RANGE = { month: 'mes', quarter: '3m', year: 'ytd', custom: 'custom' };
+const MONTH_CAP = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+function ymLabel(ym) { return `${MONTH_CAP[parseInt(ym.slice(5), 10) - 1]} ${ym.slice(0, 4)}`; }
 
 function Delta({ current, previous }) {
   if (previous == null || previous === 0) return null;
   const pct = Math.round(((current - previous) / previous) * 100);
   const up = pct >= 0;
   return (
-    <span style={{ fontSize: 10.5, fontWeight: 700, marginLeft: 6, color: up ? 'var(--teal-dk)' : 'var(--rose)' }}>
+    <span style={{ fontSize: 10, fontWeight: 700, marginLeft: 6, color: up ? 'var(--teal-dk)' : 'var(--danger)' }}>
       {up ? '▲' : '▼'} {Math.abs(pct)}%
     </span>
   );
@@ -122,8 +95,8 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
   const todayYm = `${today.getFullYear()}-${pad(today.getMonth() + 1)}`;
 
   const [period, setPeriod] = useState('month');
-  const [rangeFrom, setRangeFrom] = useState('');
-  const [rangeTo, setRangeTo] = useState('');
+  const [rangeFrom, setRangeFrom] = useState(addMonths(todayYm, -5)); // YYYY-MM
+  const [rangeTo, setRangeTo] = useState(todayYm);                    // YYYY-MM
   const [patientFilter, setPatientFilter] = useState('');
   const [sortCol, setSortCol] = useState('total');
   const [sortAsc, setSortAsc] = useState(false);
@@ -141,16 +114,26 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
     return { label: `${monthLabel(`${y}-${pad(m + 1)}`)} ${y}`, total, count: items.length };
   }, [appointments, projectionOffset]);
 
-  // ---- Período global (afecta KPIs, cancelaciones "por mes" y la tabla) ----
-  const { from, to } = useMemo(() => {
+  // ---- Período global: aplica a todo el análisis (KPIs, gráficos, cancelaciones y tabla) ----
+  const [customFrom, customTo] = rangeFrom <= rangeTo ? [rangeFrom, rangeTo] : [rangeTo, rangeFrom];
+  const { from, to, periodLabel } = useMemo(() => {
     const y = today.getFullYear(), m = today.getMonth();
     const lastDayOfMonth = new Date(y, m + 1, 0).getDate();
-    if (period === 'month') return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}` };
-    if (period === 'quarter') { const qm = Math.max(0, m - 2); return { from: `${y}-${pad(qm + 1)}-01`, to: toDateStr(today) }; }
-    if (period === 'year') return { from: `${y}-01-01`, to: toDateStr(today) };
-    if (period === 'custom') return { from: rangeFrom || `${y}-01-01`, to: rangeTo || toDateStr(today) };
-    return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}` };
-  }, [period, rangeFrom, rangeTo]);
+    const endOf = (ym) => { const [yy, mm] = ym.split('-').map(Number); return `${ym}-${pad(new Date(yy, mm, 0).getDate())}`; };
+    if (period === 'quarter') {
+      const fromYm = addMonths(todayYm, -2);
+      return { from: `${fromYm}-01`, to: toDateStr(today), periodLabel: `${ymLabel(fromYm).split(' ')[0]} – ${ymLabel(todayYm)}` };
+    }
+    if (period === 'year') return { from: `${y}-01-01`, to: toDateStr(today), periodLabel: `Ene – ${ymLabel(todayYm)}` };
+    if (period === 'custom') {
+      return {
+        from: `${customFrom}-01`, to: endOf(customTo),
+        periodLabel: customFrom === customTo ? ymLabel(customFrom) : `${ymLabel(customFrom)} – ${ymLabel(customTo)}`,
+      };
+    }
+    return { from: `${y}-${pad(m + 1)}-01`, to: `${y}-${pad(m + 1)}-${pad(lastDayOfMonth)}`, periodLabel: ymLabel(todayYm) };
+  }, [period, customFrom, customTo]);
+  const chartRange = PERIOD_TO_RANGE[period];
 
   const filtered = useMemo(() => appointments.filter((a) => a.date >= from && a.date <= to), [appointments, from, to]);
 
@@ -262,22 +245,19 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
 
   const kpis = [
     { label: 'Pacientes activos', value: activeCount },
-    { label: 'Sesiones', value: `${stats.att}/${stats.att + stats.totalCanc}`, sub: 'asistidas / agendadas', color: 'var(--teal-dk)' },
+    { label: 'Sesiones', value: <>{stats.att}<span style={{ color: 'var(--text-lt)', fontSize: 12 }}>/{stats.att + stats.totalCanc}</span></>, sub: 'asistidas / agendadas' },
     { label: 'Asistencia', value: `${stats.attendanceRate}%`, color: 'var(--teal-dk)' },
-    { label: 'Cancelaciones', value: stats.totalCanc, sub: `Día: ${stats.cancDay} · Anticip.: ${stats.cancAdv}${stats.cancFree ? ` · Liberó: ${stats.cancFree}` : ''}`, color: 'var(--amber)' },
+    { label: 'Cancelaciones', value: stats.totalCanc, sub: `${stats.cancDay} día · ${stats.cancAdv} anticip.${stats.cancFree ? ` · ${stats.cancFree} liberó` : ''}`, color: 'var(--warning)' },
     { label: 'Recaudado', value: fmt$(stats.coll) },
-    { label: 'Pendiente de cobro', value: fmt$(stats.debt), color: '#9A6100' },
+    { label: 'Pendiente de cobro', value: fmt$(stats.debt), color: 'var(--warning-text)' },
     { label: 'Efectivo', value: fmt$(stats.cash) },
     { label: 'Transferencia', value: fmt$(stats.transf) },
   ];
   if (eventsInPeriod.count > 0) kpis.push({ label: 'Eventos', value: eventsInPeriod.count, sub: eventsInPeriod.paid ? `${fmt$(eventsInPeriod.paid)} recaudado` : '', color: 'var(--violet)' });
 
-  // ---- Gráfico Sesiones: asistidas + canceladas apiladas, con su propio selector de período ----
-  const [sesRange, setSesRange] = useState('mes');
-  const [sesFrom, setSesFrom] = useState('');
-  const [sesTo, setSesTo] = useState('');
+  // ---- Gráfico Sesiones: asistidas + canceladas apiladas (sigue al período global) ----
   const ses = useMemo(() => {
-    const { current, previousItems, note } = bucketByRange(appointments, sesRange, sesFrom, sesTo, todayYm);
+    const { current, previousItems, note } = bucketByRange(appointments, chartRange, customFrom, customTo, todayYm);
     const data = current.map((b) => {
       const asistidas = b.items.filter((a) => a.attendance === 'yes').length;
       const canceladas = b.items.filter((a) => a.attendance === 'no' || a.attendance === 'no-free').length;
@@ -285,20 +265,18 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
     });
     const totalAtt = data.reduce((s, d) => s + d.asistidas, 0);
     const prevAtt = previousItems ? previousItems.filter((a) => a.attendance === 'yes').length : null;
-    return { data, note, totalAtt, prevAtt };
-  }, [appointments, sesRange, sesFrom, sesTo, todayYm]);
+    const totalCanc = data.reduce((s, d) => s + d.canceladas, 0);
+    return { data, note, totalAtt, prevAtt, totalCanc };
+  }, [appointments, chartRange, customFrom, customTo, todayYm]);
 
-  // ---- Gráfico Recaudación: total cobrado por período, con su propio selector ----
-  const [revRange, setRevRange] = useState('mes');
-  const [revFrom, setRevFrom] = useState('');
-  const [revTo, setRevTo] = useState('');
+  // ---- Gráfico Recaudación: total cobrado (sigue al período global) ----
   const rev = useMemo(() => {
-    const { current, previousItems, note } = bucketByRange(appointments, revRange, revFrom, revTo, todayYm);
+    const { current, previousItems, note } = bucketByRange(appointments, chartRange, customFrom, customTo, todayYm);
     const data = current.map((b) => ({ label: b.label, recaudado: b.items.filter((a) => a.payment === 'paid').reduce((s, a) => s + (Number(a.price) || 0), 0) }));
     const totalRev = data.reduce((s, d) => s + d.recaudado, 0);
     const prevRev = previousItems ? previousItems.filter((a) => a.payment === 'paid').reduce((s, a) => s + (Number(a.price) || 0), 0) : null;
     return { data, note, totalRev, prevRev };
-  }, [appointments, revRange, revFrom, revTo, todayYm]);
+  }, [appointments, chartRange, customFrom, customTo, todayYm]);
 
   // ---- Cancelaciones: por día de la semana / por mes (período global) / últimos 12 meses ----
   const [cancMode, setCancMode] = useState('dia');
@@ -325,8 +303,8 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
   const cancData = cancMode === 'dia'
     ? stats.weekdayData.map((d) => ({ label: d.label, full: d.label, pct: d.tasa, tot: d.tot, canc: d.canc }))
     : cancMode === 'mes' ? cancMonthly : cancYear;
-  const cancNote = cancMode === 'dia' ? '% de turnos cancelados sobre el total agendado ese día (período elegido arriba).'
-    : cancMode === 'mes' ? '% de turnos cancelados sobre el total agendado cada mes (período elegido arriba).'
+  const cancNote = cancMode === 'dia' ? '% de turnos cancelados sobre el total agendado ese día de la semana.'
+    : cancMode === 'mes' ? '% de turnos cancelados sobre el total agendado cada mes del período.'
     : '% de turnos cancelados en cada uno de los últimos 12 meses. No depende del período elegido arriba.';
 
   // ---- Tabla "Resumen por paciente": columnas elegibles, orden, búsqueda y exportar a Excel ----
@@ -383,7 +361,7 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
   function sortBy(col) {
     if (sortCol === col) setSortAsc(!sortAsc); else { setSortCol(col); setSortAsc(false); }
   }
-  const arrow = (col) => (sortCol === col ? (sortAsc ? '↑' : '↓') : '↕');
+  const arrow = (col) => (sortCol === col ? (sortAsc ? '▲' : '▼') : '↕');
   function cellValue(c, row) {
     if (c.t === 'money') return fmt$(row[c.k]);
     if (c.t === 'pct') return `${row[c.k]}%`;
@@ -393,7 +371,6 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
 
   async function exportXlsx() {
     const XLSX = await import('xlsx');
-    const periodLabel = { month: 'Mes en curso', quarter: 'Últimos 3 meses', year: 'Año en curso', custom: `${from} a ${to}` }[period];
     const header = visibleCols.map((c) => c.l);
     const rows = sortedPatients.map((r) => visibleCols.map((c) => (c.t === 'text' ? String(cellValue(c, r)) : r[c.k])));
     const ws = XLSX.utils.aoa_to_sheet([[`Resumen por paciente — ${periodLabel}`], [], header, ...rows]);
@@ -406,37 +383,38 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
   }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 17, margin: '0 0 14px' }}>Análisis</h2>
-
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {[['month', 'Este mes'], ['quarter', 'Últ. 3 meses'], ['year', 'Este año'], ['custom', 'Personalizado']].map(([v, l]) => (
-          <button
-            key={v}
-            onClick={() => setPeriod(v)}
-            className="pressable"
-            style={{
-              padding: '6px 12px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: '1px solid var(--border)',
-              background: period === v ? 'var(--navy)' : 'var(--card)', color: period === v ? '#fff' : 'var(--text-md)',
-            }}
-          >
-            {l}
-          </button>
-        ))}
+    <div style={{ padding: '0 16px 16px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Período: fijo arriba, aplica a todo el análisis */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 4, background: 'var(--card)', margin: '0 -16px', padding: '14px 16px 10px', borderBottom: '1px solid var(--border-soft)' }}>
+        <div className="segmented dark-on" role="group" aria-label="Período" style={{ width: '100%' }}>
+          {PERIOD_OPTS.map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => setPeriod(v)}
+              aria-pressed={period === v}
+              className={`pressable segmented-item${period === v ? ' active' : ''}`}
+              style={{ flex: '1 1 auto', minWidth: 0, fontSize: 10.5, padding: '7px 3px' }}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        {period === 'custom' && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8, fontSize: 10.5, color: 'var(--text-lt)' }}>
+            <span>Desde</span>
+            <input type="month" value={rangeFrom} max={todayYm} onChange={(e) => e.target.value && setRangeFrom(e.target.value)} aria-label="Desde"
+              style={{ flex: 1, minWidth: 0, fontSize: 12, padding: '5px 7px', borderRadius: 8, background: 'var(--muted)' }} />
+            <span>hasta</span>
+            <input type="month" value={rangeTo} onChange={(e) => e.target.value && setRangeTo(e.target.value)} aria-label="Hasta"
+              style={{ flex: 1, minWidth: 0, fontSize: 12, padding: '5px 7px', borderRadius: 8, background: 'var(--muted)' }} />
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: 'var(--text-lt)', marginTop: 6 }}>Mostrando: {periodLabel} · aplica a todo el análisis</div>
       </div>
 
-      {period === 'custom' && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          <input type="date" value={rangeFrom} onChange={(e) => setRangeFrom(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
-          <span style={{ fontSize: 12, color: 'var(--text-lt)' }}>a</span>
-          <input type="date" value={rangeTo} onChange={(e) => setRangeTo(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid var(--border)', fontSize: 12 }} />
-        </div>
-      )}
-      <p style={{ fontSize: 10.5, color: 'var(--text-lt)', margin: '0 0 14px' }}>Aplica a los KPI, a "Cancelaciones · por mes" y a la tabla de abajo.</p>
-
       {/* Proyección */}
-      <div className="card" style={{ padding: 16, marginBottom: 14, background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={() => setProjectionOffset((v) => v - 1)} className="pressable" style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,.12)', color: '#fff', border: 'none', cursor: 'pointer' }}>‹</button>
+      <div style={{ padding: 16, borderRadius: 'var(--radius-lg)', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button onClick={() => setProjectionOffset((v) => v - 1)} className="pressable" aria-label="Mes anterior" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronLeft size={14} /></button>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,.55)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
             Proyección · {projection.label}
@@ -444,82 +422,81 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 800, color: 'var(--teal)', marginTop: 2 }}>{fmt$(projection.total)}</div>
           <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,.45)', marginTop: 2 }}>{projection.count} turno{projection.count === 1 ? '' : 's'} confirmado{projection.count === 1 ? '' : 's'}</div>
         </div>
-        <button onClick={() => setProjectionOffset((v) => v + 1)} className="pressable" style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,.12)', color: '#fff', border: 'none', cursor: 'pointer' }}>›</button>
+        <button onClick={() => setProjectionOffset((v) => v + 1)} className="pressable" aria-label="Mes siguiente" style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,.1)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={14} /></button>
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 9, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gridAutoRows: '1fr', gap: 9 }}>
         {kpis.map((k) => (
-          <div key={k.label} className="card" style={{ padding: '11px 10px', borderTop: `3px solid ${k.color || 'var(--teal-dk)'}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: 78 }}>
+          <div key={k.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '11px 10px', borderTop: '3px solid var(--teal-dk)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', minHeight: 82, minWidth: 0 }}>
             <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', letterSpacing: '.03em', lineHeight: 1.3 }}>{k.label}</div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 800, marginTop: 3 }}>{k.value}</div>
+            <div className="mono" style={{ fontSize: 16, fontWeight: 800, marginTop: 3, whiteSpace: 'nowrap', color: k.color || 'var(--text)' }}>{k.value}</div>
             {k.sub && <div style={{ fontSize: 9, color: 'var(--text-lt)', marginTop: 2, lineHeight: 1.3 }}>{k.sub}</div>}
           </div>
         ))}
       </div>
 
-      {/* Sesiones: apiladas asistidas/canceladas, con selector de período propio */}
-      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>Sesiones</div>
+      {/* Sesiones: asistidas + canceladas apiladas; la barra es el total agendado */}
+      <div className="fcard">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <div className="flabel">Sesiones</div>
           <div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800 }}>{ses.totalAtt} asistidas</span>
+            <span className="mono" style={{ fontSize: 13, fontWeight: 800 }}>{ses.totalAtt} asistidas</span>
             <Delta current={ses.totalAtt} previous={ses.prevAtt} />
           </div>
         </div>
-        <RangeChips value={sesRange} onChange={setSesRange} from={sesFrom} to={sesTo} onFrom={setSesFrom} onTo={setSesTo} />
-        <p style={{ fontSize: 10.5, color: 'var(--text-lt)', margin: '0 0 8px' }}>{ses.note}</p>
-        {ses.data.length === 0 ? (
+        <p style={{ fontSize: 10.5, color: 'var(--text-lt)', margin: '-4px 0 10px' }}>{ses.note} · canceladas: {ses.totalCanc}</p>
+        {ses.data.every((d) => d.total === 0) ? (
           <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>Sin turnos en este período.</p>
         ) : (
-          <div style={{ width: '100%', height: 170 }}>
+          <div style={{ width: '100%', height: 150 }}>
             <ResponsiveContainer>
-              <BarChart data={ses.data} margin={{ top: 16, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-lt)' }} axisLine={false} tickLine={false} width={26} allowDecimals={false} />
-                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)' }} />
-                <Bar dataKey="asistidas" stackId="s" fill="var(--teal-dk)" radius={[0, 0, 2, 2]} maxBarSize={26} />
-                <Bar dataKey="canceladas" stackId="s" fill="var(--amber)" radius={[4, 4, 0, 0]} maxBarSize={26}>
-                  <LabelList dataKey="total" position="top" style={{ fontSize: 10, fontWeight: 700, fill: 'var(--text-md)' }} />
+              <BarChart data={ses.data} margin={{ top: 16, right: 4, left: -22, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 9.5, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} width={30} allowDecimals={false} />
+                <Tooltip cursor={{ fill: 'var(--muted)' }} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)' }} />
+                <Bar dataKey="asistidas" name="Asistidas" stackId="s" fill="var(--teal-dk)" radius={[0, 0, 2, 2]} maxBarSize={22} />
+                <Bar dataKey="canceladas" name="Canceladas" stackId="s" fill="var(--warning)" radius={[4, 4, 0, 0]} maxBarSize={22}>
+                  <LabelList dataKey="total" position="top" style={{ fontSize: 9.5, fontWeight: 700, fill: 'var(--text)', fontFamily: 'var(--font-mono, monospace)' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
-        <div style={{ display: 'flex', gap: 12, fontSize: 10.5, color: 'var(--text-lt)', marginTop: 6 }}>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--teal-dk)', marginRight: 4 }} />Asistidas</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--amber)', marginRight: 4 }} />Canceladas</span>
+        <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--text-md)', marginTop: 8 }}>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--teal-dk)', marginRight: 5 }} />Asistidas</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: 'var(--warning)', marginRight: 5 }} />Canceladas</span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text-lt)' }}>Barra = total agendado</span>
         </div>
       </div>
 
-      {/* Recaudación: con selector de período propio */}
-      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>Recaudación</div>
+      {/* Recaudación */}
+      <div className="fcard">
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+          <div className="flabel">Recaudación</div>
           <div>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 800 }}>{fmt$(rev.totalRev)}</span>
+            <span className="mono" style={{ fontSize: 13, fontWeight: 800 }}>{fmt$(rev.totalRev)}</span>
             <Delta current={rev.totalRev} previous={rev.prevRev} />
           </div>
         </div>
-        <RangeChips value={revRange} onChange={setRevRange} from={revFrom} to={revTo} onFrom={setRevFrom} onTo={setRevTo} />
-        <p style={{ fontSize: 10.5, color: 'var(--text-lt)', margin: '0 0 8px' }}>{rev.note}</p>
-        {rev.data.length === 0 ? (
+        <p style={{ fontSize: 10.5, color: 'var(--text-lt)', margin: '-4px 0 10px' }}>{rev.note}</p>
+        {rev.data.every((d) => d.recaudado === 0) ? (
           <p style={{ fontSize: 12, color: 'var(--text-lt)', margin: 0 }}>Sin cobros en este período.</p>
         ) : (
-          <div style={{ width: '100%', height: 170 }}>
+          <div style={{ width: '100%', height: 150 }}>
             <ResponsiveContainer>
-              <AreaChart data={rev.data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={rev.data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
                 <defs>
                   <linearGradient id="recaudadoFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--teal-dk)" stopOpacity={0.28} />
-                    <stop offset="100%" stopColor="var(--teal-dk)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#3ECFB2" stopOpacity={0.28} />
+                    <stop offset="100%" stopColor="#3ECFB2" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 10.5, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-lt)' }} axisLine={false} tickLine={false} width={30} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
-                <Tooltip formatter={(v) => [fmt$(v), 'Recaudado']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 9.5, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} />
+                <YAxis tick={{ fontSize: 9, fill: 'var(--text-lt)' }} axisLine={{ stroke: 'var(--border)' }} tickLine={false} width={34} tickFormatter={(v) => `$${Math.round(v / 1000)}k`} />
+                <Tooltip formatter={(v) => [fmt$(v), 'Recaudado']} contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--text)' }} />
                 <Area type="monotone" dataKey="recaudado" stroke="var(--teal-dk)" strokeWidth={2} fill="url(#recaudadoFill)" dot={false} activeDot={{ r: 4 }} />
               </AreaChart>
             </ResponsiveContainer>
@@ -528,14 +505,14 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
       </div>
 
       {/* Cancelaciones: por día / por mes / últimos 12 meses, heatmap verde→rojo */}
-      <div className="card" style={{ padding: 16, marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>
+      <div className="fcard">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
+          <div className="flabel" style={{ margin: 0 }}>
             {cancMode === 'dia' ? 'Cancelaciones por día' : cancMode === 'mes' ? 'Cancelaciones por mes' : 'Cancelaciones · 12 meses'}
           </div>
-          <div className="segmented" style={{ padding: 3 }}>
+          <div className="segmented" style={{ padding: 2 }}>
             {[['dia', 'Por día'], ['mes', 'Por mes'], ['anio', '12 meses']].map(([v, l]) => (
-              <button key={v} onClick={() => setCancMode(v)} className={`pressable segmented-item${cancMode === v ? ' active' : ''}`} style={{ fontSize: 10.5, padding: '5px 9px', border: 'none', cursor: 'pointer' }}>{l}</button>
+              <button key={v} onClick={() => setCancMode(v)} aria-pressed={cancMode === v} className={`pressable segmented-item${cancMode === v ? ' active' : ''}`} style={{ fontSize: 10, padding: '4px 9px' }}>{l}</button>
             ))}
           </div>
         </div>
@@ -551,8 +528,8 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
                 return cancData.map((d) => {
                   const k = hi === lo ? 0 : (d.pct - lo) / (hi - lo);
                   return (
-                    <div key={d.label} title={`${d.full}: ${d.pct}% (${d.canc} de ${d.tot})`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
-                      <span style={{ fontSize: 9.5, fontWeight: 700, marginBottom: 2 }}>{d.pct}%</span>
+                    <div key={d.label} title={`${d.full}: ${d.pct}% (${d.canc} de ${d.tot})`} aria-label={`${d.full}: ${d.pct}% cancelado`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', height: '100%' }}>
+                      <span className="mono" style={{ fontSize: 9, fontWeight: 700, marginBottom: 2 }}>{d.pct}%</span>
                       <div style={{ width: '100%', maxWidth: 26, height: `${Math.max((d.pct / (hi || 1)) * 100, 3)}%`, background: heatColor(k), borderRadius: '4px 4px 2px 2px' }} />
                     </div>
                   );
@@ -570,32 +547,22 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
         )}
       </div>
 
-      <Link
-        href="/pacientes?statuses=active&debtors=1"
-        className="card pressable"
-        style={{ padding: 16, marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--amber-tint)' }}
-      >
-        <div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', marginBottom: 4 }}>Deudores</div>
-          <p style={{ fontSize: 11, color: 'var(--text-lt)', margin: 0 }}>Ver el detalle y registrar pagos se hace desde Pacientes › Deudores.</p>
-        </div>
-        <span style={{ fontSize: 20, color: 'var(--text-lt)', flex: 'none', marginLeft: 12 }}>›</span>
-      </Link>
-
       {/* Resumen por paciente: columnas elegibles, búsqueda, orden y exportar a Excel */}
-      <div className="card" style={{ padding: 16, position: 'relative' }}>
+      <div className="fcard" style={{ position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase' }}>Resumen por paciente</div>
+          <div className="flabel" style={{ margin: 0 }}>Resumen por paciente</div>
           <button
             onClick={() => setColMenuOpen((v) => !v)}
             className="pressable"
             aria-label="Opciones de la tabla"
-            style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: colMenuOpen ? 'var(--navy)' : 'var(--muted)', color: colMenuOpen ? '#fff' : 'var(--text-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            aria-haspopup="true"
+            aria-expanded={colMenuOpen}
+            style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: colMenuOpen ? 'var(--btn)' : 'var(--muted)', color: colMenuOpen ? 'var(--btn-fg)' : 'var(--text-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
           >
-            <MoreVertical size={15} />
+            <MoreHorizontal size={16} />
           </button>
           {colMenuOpen && (
-            <div className="card" style={{ position: 'absolute', top: 36, right: 0, width: 230, padding: 10, zIndex: 20 }}>
+            <div className="card" style={{ position: 'absolute', top: 36, right: 0, width: 230, padding: 10, zIndex: 20, borderRadius: 14, boxShadow: 'var(--shadow-lg)' }}>
               <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-lt)', textTransform: 'uppercase', letterSpacing: '.04em', margin: '0 4px 6px' }}>Columnas visibles</div>
               <div style={{ maxHeight: 220, overflowY: 'auto' }}>
                 {ALL_COLUMNS.map((c) => (
@@ -606,32 +573,35 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
                 ))}
               </div>
               <div style={{ borderTop: '1px solid var(--border)', margin: '8px 0' }} />
-              <button onClick={exportXlsx} className="pressable" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 12, fontWeight: 700, border: 'none', borderRadius: 999, padding: 9, background: 'var(--teal)', color: 'var(--navy)', cursor: 'pointer' }}>
+              <button onClick={exportXlsx} className="btn btn-accent btn-block pressable" style={{ fontSize: 12, padding: 9, boxShadow: 'none' }}>
                 <Download size={14} /> Descargar Excel (.xlsx)
               </button>
             </div>
           )}
         </div>
 
-        <div style={{ position: 'relative', margin: '10px 0' }}>
-          <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-lt)' }} />
-          <input
-            value={patientFilter}
-            onChange={(e) => setPatientFilter(e.target.value)}
-            placeholder="Buscar paciente…"
-            style={{ width: '100%', padding: '9px 10px 9px 30px', borderRadius: 10, border: '1px solid var(--border)', fontSize: 12.5 }}
-          />
-        </div>
+        <input
+          type="search"
+          value={patientFilter}
+          onChange={(e) => setPatientFilter(e.target.value)}
+          placeholder="Buscar paciente…"
+          aria-label="Buscar paciente"
+          style={{ width: '100%', margin: '10px 0', padding: '10px 13px', borderRadius: 12, background: 'var(--muted)', fontSize: 14 }}
+        />
 
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 420 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11.5 }}>
             <thead>
               <tr>
                 {visibleCols.map((c) => (
                   <th
                     key={c.k}
                     onClick={() => sortBy(c.k)}
-                    style={{ textAlign: c.t === 'text' ? 'left' : 'right', padding: '6px 8px', borderBottom: '2px solid var(--border)', cursor: 'pointer', color: sortCol === c.k ? 'var(--navy)' : 'var(--text-lt)', fontWeight: 700, whiteSpace: 'nowrap' }}
+                    style={{
+                      textAlign: c.t === 'text' ? 'left' : 'right', padding: '6px 8px', borderBottom: '2px solid var(--border)', cursor: 'pointer', userSelect: 'none',
+                      color: sortCol === c.k ? 'var(--ink)' : 'var(--text-lt)', fontWeight: 700, whiteSpace: 'nowrap',
+                      ...(c.lock ? { position: 'sticky', left: 0, background: 'var(--card)', zIndex: 1, boxShadow: '1px 0 0 var(--border)' } : {}),
+                    }}
                   >
                     {c.l} <span style={{ fontSize: 9, opacity: sortCol === c.k ? 1 : 0.5, color: sortCol === c.k ? 'var(--teal-dk)' : 'inherit' }}>{arrow(c.k)}</span>
                   </th>
@@ -642,7 +612,12 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
               {sortedPatients.map((p) => (
                 <tr key={p.name}>
                   {visibleCols.map((c) => (
-                    <td key={c.k} style={{ padding: '7px 8px', borderBottom: '1px solid var(--border)', textAlign: c.t === 'text' ? 'left' : 'right', fontWeight: c.k === 'name' ? 700 : 400, color: c.k === 'debt' && p.debt > 0 ? '#9A6100' : c.k === 'att' ? 'var(--teal-dk)' : c.k === 'paid' ? 'var(--teal-dk)' : 'inherit' }}>
+                    <td key={c.k} style={{
+                      padding: '6px 8px', borderBottom: '1px solid var(--border-soft)', textAlign: c.t === 'text' ? 'left' : 'right', whiteSpace: 'nowrap',
+                      fontWeight: c.k === 'name' || (c.k === 'debt' && p.debt > 0) ? 700 : 400,
+                      color: c.k === 'debt' && p.debt > 0 ? 'var(--warning-text)' : 'inherit',
+                      ...(c.lock ? { position: 'sticky', left: 0, background: 'var(--card)', zIndex: 1, boxShadow: '1px 0 0 var(--border)' } : {}),
+                    }}>
                       {cellValue(c, p)}
                     </td>
                   ))}
@@ -654,7 +629,7 @@ export default function AnalisisClient({ appointments, activeCount, events }) {
             </tbody>
           </table>
         </div>
-        <div style={{ fontSize: 10, color: 'var(--text-lt)', marginTop: 8 }}>{sortedPatients.length} paciente{sortedPatients.length === 1 ? '' : 's'} · {visibleCols.length} columnas</div>
+        <div style={{ fontSize: 10, color: 'var(--text-lt)', marginTop: 8 }}>{sortedPatients.length} paciente{sortedPatients.length === 1 ? '' : 's'} · {periodLabel} · {visibleCols.length} columnas</div>
       </div>
     </div>
   );

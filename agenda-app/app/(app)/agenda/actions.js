@@ -53,6 +53,13 @@ export async function createAppointment(formData) {
     const note = formData.get('note')?.toString().trim() || null;
     const recurring = formData.get('recurring') === 'on';
 
+    // "Desde" / "Hasta": se bloquea una fila por cada hora del rango (mínimo una).
+    const startHour = parseInt(time.slice(0, 2), 10);
+    const endRaw = formData.get('end_time')?.toString();
+    const endHour = endRaw ? parseInt(endRaw.slice(0, 2), 10) : NaN;
+    const hours = [];
+    for (let h = startHour; h < (Number.isNaN(endHour) || endHour <= startHour ? startHour + 1 : endHour); h++) hours.push(h);
+
     const count = recurring ? 52 : 1;
     const base = new Date(date + 'T00:00:00');
     const rows = [];
@@ -62,10 +69,12 @@ export async function createAppointment(formData) {
       const y = cur.getFullYear();
       const m = String(cur.getMonth() + 1).padStart(2, '0');
       const d2 = String(cur.getDate()).padStart(2, '0');
-      rows.push({
-        owner_id: user.id, type: 'block', date: `${y}-${m}-${d2}`, time,
-        attendance: 'pending', payment: 'na',
-        title: reason, block_note: note, block_recurring: recurring,
+      hours.forEach((h) => {
+        rows.push({
+          owner_id: user.id, type: 'block', date: `${y}-${m}-${d2}`, time: `${String(h).padStart(2, '0')}:00`,
+          attendance: 'pending', payment: 'na',
+          title: reason, block_note: note, block_recurring: recurring,
+        });
       });
     }
     await supabase.from('appointments').insert(rows);
@@ -94,17 +103,17 @@ export async function createAppointment(formData) {
 
   if (!name) return;
 
-  const [first, ...rest] = name.split(' ');
+  const [first, ...rest] = name.split(/\s+/);
   const last = rest.join(' ') || null;
 
-  let { data: existing } = await supabase
-    .from('patients')
-    .select('id')
-    .ilike('first_name', first)
-    .is('last_name', last)
-    .maybeSingle();
-
-  let patientId = existing?.id;
+  // Si se eligió un paciente de la lista viene su id; si no, se busca por nombre y, si no existe, se crea.
+  let patientId = formData.get('patient_id')?.toString() || null;
+  if (!patientId) {
+    let lookup = supabase.from('patients').select('id').ilike('first_name', first);
+    lookup = last ? lookup.ilike('last_name', last) : lookup.is('last_name', null);
+    const { data: existing } = await lookup.limit(1).maybeSingle();
+    patientId = existing?.id || null;
+  }
   if (!patientId) {
     const { data: created } = await supabase
       .from('patients')
@@ -147,12 +156,20 @@ export async function createAppointment(formData) {
   await supabase.from('appointments').insert(rows);
 
   revalidatePath('/agenda');
+  revalidatePath('/pacientes');
 }
 
 export async function deleteEvent(id) {
+  return deleteBlocks([id]);
+}
+
+// Libera uno o varios horarios bloqueados (un bloque de varias horas son varias filas).
+export async function deleteBlocks(ids) {
+  if (!ids?.length) return;
   const supabase = createClient();
-  await supabase.from('appointments').delete().eq('id', id).eq('type', 'block');
+  await supabase.from('appointments').delete().in('id', ids).eq('type', 'block');
   revalidatePath('/agenda');
+  revalidatePath('/disponibles');
 }
 
 export async function deleteEventConfirmed(id) {

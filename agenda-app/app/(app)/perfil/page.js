@@ -14,9 +14,6 @@ export default async function PerfilPage() {
     .maybeSingle();
 
   return (
-    <div>
-      <h2 style={{ fontSize: 17, margin: '16px 0 0 16px' }}>Perfil</h2>
-      <PerfilForm email={user.email} avatarUrl={user.user_metadata?.avatar_url || ''} settings={settings} />
-    </div>
+    <PerfilForm email={user.email} avatarUrl={user.user_metadata?.avatar_url || ''} settings={settings} />
   );
 }

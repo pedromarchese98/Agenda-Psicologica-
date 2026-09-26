@@ -19,7 +19,7 @@ export default async function DisponiblesPage() {
 
   const { data: weekAppts } = await supabase
     .from('appointments')
-    .select('id, date, time, type, attendance, title, block_note, block_recurring')
+    .select('id, date, time, type, attendance, title, block_note, block_recurring, auto_block')
     .gte('date', todayKey).lte('date', toDateStr(windowEnd))
     .in('type', ['patient', 'other', 'block']);
 
@@ -45,15 +45,25 @@ export default async function DisponiblesPage() {
       // Un turno tipo "patient" cancelado (no-free) no cuenta como ocupado: el horario queda libre.
       const isOccupied = inHour.some((a) => (a.type === 'patient' && a.attendance !== 'no-free') || a.type === 'other');
       if (blockRow) {
-        blockedSlots.push({
-          time: `${hStr}:00`, id: blockRow.id,
-          reason: blockRow.title || 'Bloqueado', note: blockRow.block_note || null,
-          recurring: !!blockRow.block_recurring,
-        });
+        // Los bloqueos automáticos (fuera de tus días/horario de atención) no se listan:
+        // se ajustan desde Perfil › Días y horario de atención.
+        if (!blockRow.auto_block) {
+          const reason = blockRow.title || 'Bloqueado';
+          const note = blockRow.block_note || null;
+          const recurring = !!blockRow.block_recurring;
+          const prev = blockedSlots[blockedSlots.length - 1];
+          // Horas consecutivas con el mismo motivo se muestran como un solo bloque ("2 horas · hasta 14:00").
+          if (prev && prev.endHour === h && prev.reason === reason && prev.note === note && prev.recurring === recurring) {
+            prev.ids.push(blockRow.id);
+            prev.endHour = h + 1;
+          } else {
+            blockedSlots.push({ time: `${hStr}:00`, ids: [blockRow.id], endHour: h + 1, reason, note, recurring });
+          }
+        }
       }
       else if (!isOccupied) freeSlots.push(`${hStr}:00`);
     }
-    days.push({ key, day: cur.getDate(), month: cur.getMonth() + 1, weekday: cur.getDay(), freeSlots, blockedSlots });
+    days.push({ key, day: cur.getDate(), month: cur.getMonth(), weekday: cur.getDay(), freeSlots, blockedSlots });
   }
 
   return <AvailabilityList days={days} />;

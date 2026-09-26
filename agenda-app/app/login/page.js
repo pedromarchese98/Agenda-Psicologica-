@@ -115,7 +115,7 @@ function LoginInner() {
       >
         <LogoIcon size={26} color="var(--teal)" strokeWidth={2} />
       </div>
-      <h1 style={{ color: '#fff', fontSize: 18, fontWeight: 800, marginBottom: 28, letterSpacing: '-0.01em' }}>
+      <h1 style={{ color: '#fff', fontSize: 17, fontWeight: 800, margin: '0 0 26px', letterSpacing: '-0.01em' }}>
         {APP_NAME}
       </h1>
 
@@ -123,30 +123,34 @@ function LoginInner() {
         <form
           onSubmit={handleSubmit}
           className="card"
-          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
+          style={{ width: '100%', maxWidth: 346, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-md)' }}>Email</label>
+            <label htmlFor="login-email" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)' }}>Email</label>
             <input
+              id="login-email"
               type="email"
               required
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', marginTop: 6, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+              style={{ width: '100%', marginTop: 4, padding: '10px 12px' }}
             />
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-md)' }}>Contraseña</label>
+            <label htmlFor="login-password" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-md)' }}>Contraseña</label>
             <input
+              id="login-password"
               type="password"
               required
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', marginTop: 6, padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+              style={{ width: '100%', marginTop: 4, padding: '10px 12px' }}
             />
           </div>
-          {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-          <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ marginTop: 6, padding: '12px 16px', borderRadius: 999 }}>
+          {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12.5, margin: 0 }}>{error}</p>}
+          <button className="btn btn-primary btn-block pressable" type="submit" disabled={loading} style={{ marginTop: 2, padding: 12 }}>
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
           <button
@@ -168,11 +172,11 @@ function LoginInner() {
         <form
           onSubmit={handleSignup}
           className="card"
-          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
+          style={{ width: '100%', maxWidth: 346, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {signupSent ? (
             <p style={{ fontSize: 13, textAlign: 'center', margin: 0 }}>
-              ✅ Te enviamos un email a <strong>{email}</strong> para confirmar tu cuenta. Una vez confirmada, ya podés iniciar sesión.
+              Te enviamos un email a <strong>{email}</strong> para confirmar tu cuenta. Una vez confirmada, ya podés iniciar sesión.
             </p>
           ) : (
             <>
@@ -182,20 +186,20 @@ function LoginInner() {
               <input
                 type="email" required placeholder="Email" value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+                style={{ width: '100%', padding: '10px 12px' }}
               />
               <input
                 type="password" required placeholder="Contraseña" value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+                style={{ width: '100%', padding: '10px 12px' }}
               />
               <input
                 type="password" required placeholder="Repetir contraseña" value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+                style={{ width: '100%', padding: '10px 12px' }}
               />
-              {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-              <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ padding: '12px 16px', borderRadius: 999 }}>
+              {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12.5, margin: 0 }}>{error}</p>}
+              <button className="btn btn-primary btn-block pressable" type="submit" disabled={loading} style={{ padding: 12 }}>
                 {loading ? 'Creando…' : 'Crear cuenta'}
               </button>
             </>
@@ -212,7 +216,7 @@ function LoginInner() {
         <form
           onSubmit={handleForgot}
           className="card"
-          style={{ width: '100%', maxWidth: 340, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
+          style={{ width: '100%', maxWidth: 346, borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-lg)', padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}
         >
           {forgotSent ? (
             <p style={{ fontSize: 13, textAlign: 'center', margin: 0 }}>
@@ -229,10 +233,10 @@ function LoginInner() {
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={{ width: '100%', padding: 12, borderRadius: 10, border: '1px solid var(--border)' }}
+                style={{ width: '100%', padding: '10px 12px' }}
               />
-              {error && <p style={{ color: 'var(--rose)', fontSize: 13, margin: 0 }}>{error}</p>}
-              <button className="btn btn-primary pressable" type="submit" disabled={loading} style={{ padding: '12px 16px', borderRadius: 999 }}>
+              {error && <p role="alert" style={{ color: 'var(--danger)', fontSize: 12.5, margin: 0 }}>{error}</p>}
+              <button className="btn btn-primary btn-block pressable" type="submit" disabled={loading} style={{ padding: 12 }}>
                 {loading ? 'Enviando…' : 'Enviar link'}
               </button>
             </>
